@@ -3,7 +3,7 @@ const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
     "Logic", "Logic UI", "UI", "Interruption", "Sound",
-    "Tutorial/Trial", "Data", "Promotion", "Common Behaviour",
+    "Tutorial/Trial", "Data", " promotion", "Common Behaviour",
     "Compatibility", "UAT", "Regression Test", "Check Feedback",
     "Crosscheck", "BetfailBan&Maintainance"
 ];
@@ -53,11 +53,15 @@ async function handleJiraAuthCallback() {
 
 function updateJiraAuthUI() {
     const statusText = document.getElementById('jira-status-text');
+    const statusDot = document.getElementById('jira-status-dot');
     const loginBtn = document.getElementById('btn-jira-login');
     if (jiraAccessToken && jiraCloudId) {
         if (statusText) {
-            statusText.innerText = "Jira: Connected ✅";
+            statusText.innerText = "Jira: Connected";
             statusText.style.color = "var(--success)";
+        }
+        if (statusDot) {
+            statusDot.style.backgroundColor = "var(--success)";
         }
         if (loginBtn) {
             loginBtn.innerText = "Disconnect";
@@ -75,6 +79,9 @@ function updateJiraAuthUI() {
         if (statusText) {
             statusText.innerText = "Jira: Not Connected";
             statusText.style.color = "var(--text-muted)";
+        }
+        if (statusDot) {
+            statusDot.style.backgroundColor = "var(--text-muted)";
         }
         if (loginBtn) {
             loginBtn.innerText = "Connect SSO";
@@ -350,10 +357,9 @@ function renderNotes() {
         });
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.innerHTML = '&times;';
-        delBtn.className = 'btn-text';
-        delBtn.style.color = 'var(--danger)';
-        delBtn.style.fontSize = '20px';
+        delBtn.innerHTML = '✕';
+        delBtn.className = 'btn-delete-scope';
+        delBtn.title = "Delete note";
         delBtn.onclick = () => {
             customNotesData.splice(index, 1);
             renderNotes();
@@ -373,8 +379,8 @@ function showToast(message, type) {
     container.appendChild(toast);
     if (type !== 'loading') {
         setTimeout(() => {
-            toast.style.animation = 'slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) reverse forwards';
-            setTimeout(() => toast.remove(), 400);
+            toast.style.animation = 'slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) reverse forwards';
+            setTimeout(() => toast.remove(), 300);
         }, 5000);
     }
     return toast;
@@ -405,7 +411,7 @@ function renderStatusGroup(containerId, mapVar) {
     if (!container) return;
     container.innerHTML = '';
     if (currentJiraStatuses.length === 0) {
-        container.innerHTML = '<span class="helper">Click ↻ to fetch statuses...</span>';
+        container.innerHTML = '<span class="helper">Click ↻ to fetch...</span>';
         return;
     }
     currentJiraStatuses.forEach((status) => {
@@ -458,19 +464,20 @@ function renderScopeCheckboxes() {
         lblText.htmlFor = safeId;
         lblText.innerText = scope;
         if (!DEFAULT_SCOPES.includes(scope)) {
-            const delSpan = document.createElement('span');
-            delSpan.innerHTML = ' &times;';
-            delSpan.style.marginLeft = '6px';
-            delSpan.style.cursor = 'pointer';
-            delSpan.style.color = 'var(--danger)';
-            delSpan.onclick = (e) => {
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn-delete-scope';
+            delBtn.innerHTML = '✕';
+            delBtn.title = "Delete Scope";
+            delBtn.onclick = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 currentScopesList = currentScopesList.filter(s => s !== scope);
                 delete checkedScopesMap[scope];
                 renderScopeCheckboxes();
                 saveCurrentSessionState();
             };
-            lblText.appendChild(delSpan);
+            lblText.appendChild(delBtn);
         }
         wrap.appendChild(chk);
         wrap.appendChild(lblText);
