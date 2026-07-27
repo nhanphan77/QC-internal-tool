@@ -1,5 +1,5 @@
 const GOOGLE_CLIENT_ID = "149310433677-59s44lsvvvfnt70g6okhvvrprj2td9ht.apps.googleusercontent.com";
-const ATLASSIAN_CLIENT_ID = "YOUR_ATLASSIAN_APP_CLIENT_ID";
+const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
     "Logic", "Logic UI", "UI", "Interruption", "Sound",
