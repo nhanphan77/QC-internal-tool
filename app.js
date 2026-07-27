@@ -93,7 +93,8 @@ function updateJiraAuthUI() {
 
 function initiateJiraSSO() {
     const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
-    const scope = encodeURIComponent("read:jira-work read:jira-user offline_access");
+    // Bổ sung Scope read:board-scope:jira-software & read:project:jira chuẩn của Atlassian
+    const scope = encodeURIComponent("read:jira-work read:jira-user read:board-scope:jira-software read:project:jira offline_access");
     const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
     window.location.href = authUrl;
 }
@@ -839,30 +840,23 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         let realKey = projectKeyInput;
         let boardId = '';
 
-        // 1. Lấy thông tin chính xác của Project (Project Name & Real Project Key)[cite: 5]
+        // 1. Lấy thông tin Project Name & Real Key chuẩn từ Jira REST API
         try {
             const pRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKeyInput}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } });
             if (pRes.ok) {
                 const pData = await pRes.json();
-                if (pData && pData.name) targetName = pData.name; //[cite: 5]
-                if (pData && pData.key) realKey = pData.key; //[cite: 5]
+                if (pData && pData.name) targetName = pData.name;
+                if (pData && pData.key) realKey = pData.key;
             }
         } catch (e) { }
 
-        // 2. Lấy Board ID theo mã dự án chuẩn (projectKeyOrId)[cite: 5]
+        // 2. Lấy Board ID chính xác qua Jira Agile REST API
         try {
-            let bRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } }); //[cite: 5]
+            const bRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } });
             if (bRes.ok) {
                 const bData = await bRes.json();
-                if (bData && bData.values && bData.values.length > 0) boardId = bData.values[0].id; //[cite: 5]
-            }
-
-            // Nếu tìm theo key không ra (với một số dự án team-managed), quét bổ sung theo tên Project
-            if (!boardId && targetName) {
-                let bRes2 = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?name=${encodeURIComponent(targetName)}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } });
-                if (bRes2.ok) {
-                    const bData2 = await bRes2.json();
-                    if (bData2 && bData2.values && bData2.values.length > 0) boardId = bData2.values[0].id;
+                if (bData && bData.values && bData.values.length > 0) {
+                    boardId = bData.values[0].id;
                 }
             }
         } catch (e) { }
@@ -889,10 +883,12 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         const jiraIssues = Array.from(issueMap.values());
         detectedBoardName = targetName;
 
-        // 3. Xây dựng link chuẩn: Có boardId dùng link Bảng, không có boardId chuyển về trang /issues[cite: 5]
-        autoJiraLink = boardId
-            ? `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}` //[cite: 5]
-            : `https://enotion.atlassian.net/jira/software/projects/${realKey}/issues`;
+        // 3. Khôi phục chính xác 100% logic ghép URL của file workspace.js
+        if (boardId) {
+            autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}`;
+        } else {
+            autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards`;
+        }
 
         const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
         let totalBoardTickets = 0;
