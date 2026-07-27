@@ -1,4 +1,4 @@
-const GOOGLE_CLIENT_ID = "149310433677-gdnr36hn4fj7q79naud36a0f5kgbiqr1.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "149310433677-59s44lsvvvfnt70g6okhvvrprj2td9ht.apps.googleusercontent.com";
 const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
@@ -838,21 +838,35 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         let targetName = projectKeyInput;
         let realKey = projectKeyInput;
         let boardId = '';
+
+        // 1. Lấy thông tin chính xác của Project (Project Name & Real Project Key)[cite: 5]
         try {
             const pRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKeyInput}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } });
             if (pRes.ok) {
                 const pData = await pRes.json();
-                if (pData && pData.name) targetName = pData.name;
-                if (pData && pData.key) realKey = pData.key;
+                if (pData && pData.name) targetName = pData.name; //[cite: 5]
+                if (pData && pData.key) realKey = pData.key; //[cite: 5]
             }
         } catch (e) { }
+
+        // 2. Lấy Board ID theo mã dự án chuẩn (projectKeyOrId)[cite: 5]
         try {
-            const bRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } });
+            let bRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } }); //[cite: 5]
             if (bRes.ok) {
                 const bData = await bRes.json();
-                if (bData && bData.values && bData.values.length > 0) boardId = bData.values[0].id;
+                if (bData && bData.values && bData.values.length > 0) boardId = bData.values[0].id; //[cite: 5]
+            }
+
+            // Nếu tìm theo key không ra (với một số dự án team-managed), quét bổ sung theo tên Project
+            if (!boardId && targetName) {
+                let bRes2 = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?name=${encodeURIComponent(targetName)}`, { headers: { 'Authorization': 'Bearer ' + jiraAccessToken, 'Accept': 'application/json' } });
+                if (bRes2.ok) {
+                    const bData2 = await bRes2.json();
+                    if (bData2 && bData2.values && bData2.values.length > 0) boardId = bData2.values[0].id;
+                }
             }
         } catch (e) { }
+
         const jqlString = `project = "${projectKeyInput}" AND issuetype in (Bug, Improvement, Question) ORDER BY created DESC`;
         const issueMap = new Map();
         let jHasMore = true;
@@ -874,7 +888,12 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         }
         const jiraIssues = Array.from(issueMap.values());
         detectedBoardName = targetName;
-        autoJiraLink = boardId ? `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}` : `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards`;
+
+        // 3. Xây dựng link chuẩn: Có boardId dùng link Bảng, không có boardId chuyển về trang /issues[cite: 5]
+        autoJiraLink = boardId
+            ? `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}` //[cite: 5]
+            : `https://enotion.atlassian.net/jira/software/projects/${realKey}/issues`;
+
         const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
         let totalBoardTickets = 0;
         let buildStatusCount = 0;
