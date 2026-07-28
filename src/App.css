@@ -1,11 +1,8 @@
 @keyframes pulseGlow {
-
-    0%,
-    100% {
+    0%, 100% {
         opacity: 1;
         transform: scale(1);
     }
-
     50% {
         opacity: 0.5;
         transform: scale(0.95);
@@ -22,14 +19,14 @@
 }
 
 ::-webkit-scrollbar-track {
-    background: #0b0f19;
+    background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: #cbd5e1;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #94a3b8;
 }
