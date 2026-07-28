@@ -793,7 +793,7 @@ export default function App() {
             if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
             let buildStatusStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
             let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
-            let summarySection = `——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: In-testing\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
+            let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: In-testing\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
             finalReport = summarySection + finalReport;
             const romanize = (num) => {
                 const lookup = { M: 1000, CM: 900, d: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1 };
@@ -916,7 +916,7 @@ export default function App() {
             const arr = Array.from(pendingStatusesFound);
             notesSegment += `- There are ${pendingCount} tickets in the ${arr.length > 1 ? arr.join(' and ') : arr[0]} columns\n`;
         }
-        notesSegment += `- QC: ${qcNamesInput || 'Victor, Anna, Khanh, Hien, ChinSu, Thea, Atomic'}\n`;
+        notesSegment += `- QC: ${qcNamesInput || 'Victor, Anna, Khanh, Hien, ChinSu, Thea, Atomic'}\n\`\`\`\nQC sends the report today!`;
         let finalOutputString = customHeader + finalReport + "——————————————————\n";
         if (jiraReportSegment.trim().length > 0) finalOutputString += jiraReportSegment.replace(/(?:——————————————————\n)$/, "") + "——————————————————\n";
         finalOutputString += notesSegment;
