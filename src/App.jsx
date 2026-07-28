@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-const GOOGLE_CLIENT_ID = "149310433677-gdnr36hn4fj7q79naud36a0f5kgbiqr1.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "149310433677-4qv9hp52p00s4csq1eb1trj23nsiu945.apps.googleusercontent.com";
 const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
