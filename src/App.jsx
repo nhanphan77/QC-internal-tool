@@ -883,10 +883,9 @@ export default function App() {
                                 const printPriority = (priority) => {
                                     if (typeContainers['BUG'][tag][priority]) {
                                         const tickets = typeContainers['BUG'][tag][priority];
-                                        jiraBody += `- ${priority}: ${tickets.length}\n`;
-                                        if (totalInTag === 1 && (priority === 'High' || priority === 'Highest')) {
-                                            tickets.forEach(t => { jiraBody += `  + Ticket ${t.key}: ${t.summary}\n`; });
-                                        }
+                                        jiraBody += `- ${priority}: ${tickets.length}\n`;if (totalInTag === 1 && (priority === 'High' || priority === 'Highest')) {
+    tickets.forEach(t => { jiraBody += `  + Ticket ${t.key.split('-').pop()}: ${t.summary}\n`; });
+}
                                     }
                                 };
                                 PRIORITY_ORDER.forEach(printPriority);
@@ -916,7 +915,7 @@ export default function App() {
                                 if (priorityMapForType[priority]) {
                                     const tickets = priorityMapForType[priority];
                                     jiraBody += `- ${priority}: ${tickets.length}\n`;
-                                    if (totalInType === 1) { tickets.forEach(t => { jiraBody += `  + Ticket ${t.key}: ${t.summary}\n`; }); }
+                                    if (totalInType === 1) { tickets.forEach(t => { jiraBody += `  + Ticket ${t.key.split('-').pop()}: ${t.summary}\n`; }); }
                                 }
                             };
                             PRIORITY_ORDER.forEach(printPriority);
