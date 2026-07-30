@@ -6,9 +6,9 @@ const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
     "Logic", "Logic UI", "UI", "Interruption", "Sound",
-    "Tutorial/Trial", "Data", " promotion", "Common Behaviour",
+    "Tutorial/Trial", "Data", "Promotion", "Common Behaviour",
     "Compatibility", "UAT", "Regression Test", "Check Feedback",
-    "Crosscheck", "BetfailBan&Maintainance"
+    "Crosscheck", "Betfail", "Ban & Maintainance"
 ];
 
 const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
