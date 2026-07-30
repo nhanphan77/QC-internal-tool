@@ -134,7 +134,7 @@ export default function App() {
                 if (state.versionApp) setVersionApp(state.versionApp);
                 if (state.dateApp) setDateApp(state.dateApp);
                 if (state.qcNames) setQcNames(state.qcNames);
-                if (state.chkCustomNote) setChkCustomNote(state.chkCustomNote);
+                if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
@@ -955,19 +955,26 @@ export default function App() {
             if (chkApptek) envParts.push("App");
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
             let linksCollected = [`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`];
+            
             if (chkWebapp) {
                 let webappVal = sharedInputValue;
                 linksCollected.push("- Webapp: " + (webappVal && !isNaN(webappVal) ? `https://webapp${webappVal}tek.enostd.gay/` : webappVal));
             }
             if (chkApptek) {
                 let appLinkVal = sharedInputValue;
-                linksCollected.push("- App: " + (appLinkVal && !isNaN(appLinkVal) ? `TektaleC${appLinkVal}` : (appLinkVal || "")));
+                let appNumMatch = appLinkVal.match(/\d+/);
+                if (appNumMatch) {
+                    linksCollected.push("- App: TektaleC" + appNumMatch[0]);
+                } else {
+                    linksCollected.push("- App: " + (appLinkVal || ""));
+                }
             }
+            
             linksCollected.push("- Jira: " + autoJiraLink);
             linksCollected.push("- Testcase: " + (autoTestcaseLink || "No link found in cell A1"));
             if (linksCollected.length > 0) customHeader += "Link:\n" + linksCollected.join('\n') + "\n";
             let notesSegment = "C. [NOTES]\n";
-            if (chkCustomNote && customNotesData.some(n => n.trim() !== "")) {
+            if (customNotesData.some(n => n.trim() !== "")) {
                 customNotesData.forEach(line => {
                     let trimmed = line.trim();
                     if (trimmed) notesSegment += (trimmed.startsWith('-') ? trimmed : `- ${trimmed}`) + "\n";
@@ -1004,7 +1011,7 @@ export default function App() {
                     <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shadow-sm">
                         <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
-                    <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Report Devtool Pro Dashboard</h1>
+                    <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">QC Report Internal Tool</h1>
                 </div>
 
                 <div className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-1.5 rounded-xl shadow-sm">
@@ -1028,7 +1035,7 @@ export default function App() {
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-                        <span className="text-indigo-600 font-mono">[01]</span> Project Details
+                        <span className="text-indigo-600 font-mono">Project Details</span> 
                     </h2>
 
                     <div className="flex flex-col gap-1.5">
@@ -1054,7 +1061,7 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-slate-600">Sheet Tab Name</label>
-                            <input type="text" value={sheetTabName} onChange={e => setSheetTabName(e.target.value)} placeholder="Sheet Tab Name" className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                            <input type="text" value={sheetTabName} onChange={e => setSheetTabName(e.target.value)} placeholder="Sheet Name" className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
@@ -1083,7 +1090,7 @@ export default function App() {
 
                     <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
                         <button type="button" onClick={() => setIsAccordionOpen(!isAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
-                            <span>Advanced Jira Status Mapping</span>
+                            <span>Jira Status</span>
                             <span className="text-slate-400">{isAccordionOpen ? '▲' : '▼'}</span>
                         </button>
 
@@ -1091,7 +1098,7 @@ export default function App() {
                             <div className="p-3 border-t border-slate-200 grid grid-cols-3 gap-3 bg-white">
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Section B</span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count tickets</span>
                                         <div className="flex gap-1 text-[9px]">
                                             <button type="button" onClick={() => toggleAllJiraCategory('B', true)} className="text-indigo-600 hover:underline font-bold">All</button>
                                             <span className="text-slate-300">|</span>
@@ -1146,7 +1153,7 @@ export default function App() {
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-                        <span className="text-indigo-600 font-mono">[02]</span> Environments & Links
+                        <span className="text-indigo-600 font-mono">Environments</span> 
                     </h2>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -1192,21 +1199,27 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700">Configurations</label>
-                        <span className="text-[11px] font-semibold text-slate-500">Env Configurations</span>
+                        <label className="text-xs font-bold text-slate-700">Webapp/App</label>
+                        <span className="text-[11px] font-semibold text-slate-500">Env</span>
                         <div className="flex flex-wrap gap-2">
                             <button type="button" onClick={() => setChkWebapp(!chkWebapp)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${chkWebapp ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}>Webapp</button>
                             <button type="button" onClick={() => setChkApptek(!chkApptek)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${chkApptek ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}>App</button>
-                            <button type="button" onClick={() => { const next = !chkCustomNote; setChkCustomNote(next); if (next && customNotesData.length === 0) setCustomNotesData(['']); }} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${chkCustomNote ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}>Custom Notes</button>
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 pt-1 border-t border-slate-200">
+                    {(chkWebapp || chkApptek) && (
+                        <div className="flex flex-col gap-1.5 mt-1">
+                            <label className="text-xs font-bold text-slate-600">Wepapp ID/Link</label>
+                            <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
                         <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-slate-700">Custom Notes</label>
+                            <label className="text-xs font-bold text-slate-700">Notes</label>
                             <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Note Line</button>
                         </div>
-                        {chkCustomNote && customNotesData.map((note, idx) => (
+                        {customNotesData.map((note, idx) => (
                             <div key={idx} className="flex gap-2">
                                 <input type="text" value={note} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Add note Line..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                                 <button type="button" onClick={() => handleNoteDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
@@ -1214,16 +1227,12 @@ export default function App() {
                         ))}
                     </div>
 
-                    <div className="flex flex-col gap-1.5 mt-1">
-                        <label className="text-xs font-bold text-slate-600">Server / Link Detail</label>
-                        <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-                    </div>
                 </section>
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-                            <span className="text-indigo-600 font-mono">[03]</span> Scope of Testing
+                            <span className="text-indigo-600 font-mono">Scope of Testing</span> 
                         </h2>
                         <div className="flex gap-1.5 text-xs">
                             <button type="button" onClick={() => { toggleAllScopes(true); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-lg transition-all">Select All</button>
