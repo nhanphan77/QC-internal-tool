@@ -15,6 +15,7 @@ const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
 
 export default function App() {
     const [jiraToken, setJiraToken] = useState(() => localStorage.getItem('jira_access_token') || null);
+    const [jiraRefreshToken, setJiraRefreshToken] = useState(() => localStorage.getItem('jira_refresh_token') || null);
     const [jiraCloudId, setJiraCloudId] = useState(() => localStorage.getItem('jira_cloud_id') || null);
     const [googleToken, setGoogleToken] = useState(() => localStorage.getItem('google_access_token') || null);
 
@@ -72,6 +73,54 @@ export default function App() {
         setToasts(prev => prev.filter(t => t.type !== 'loading'));
     };
 
+    const handleJiraDisconnect = () => {
+        localStorage.removeItem('jira_access_token');
+        localStorage.removeItem('jira_refresh_token');
+        localStorage.removeItem('jira_cloud_id');
+        setJiraToken(null);
+        setJiraRefreshToken(null);
+        setJiraCloudId(null);
+        showToast("Disconnected Jira.", 'success');
+    };
+
+    const refreshJiraToken = async () => {
+        const storedRefreshToken = localStorage.getItem('jira_refresh_token');
+        if (!storedRefreshToken) throw new Error("No refresh token available");
+        const res = await fetch('/api/jira-refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: storedRefreshToken })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Failed to refresh token');
+        setJiraToken(data.access_token);
+        setJiraRefreshToken(data.refresh_token);
+        localStorage.setItem('jira_access_token', data.access_token);
+        localStorage.setItem('jira_refresh_token', data.refresh_token);
+        return data.access_token;
+    };
+
+    const fetchWithJiraAuth = async (url, options = {}) => {
+        let currentToken = localStorage.getItem('jira_access_token');
+        let res = await fetch(url, {
+            ...options,
+            headers: { ...options.headers, 'Authorization': 'Bearer ' + currentToken }
+        });
+        if (res.status === 401) {
+            try {
+                currentToken = await refreshJiraToken();
+                res = await fetch(url, {
+                    ...options,
+                    headers: { ...options.headers, 'Authorization': 'Bearer ' + currentToken }
+                });
+            } catch (err) {
+                handleJiraDisconnect();
+                throw new Error("Jira session expired. Please Connect SSO again.");
+            }
+        }
+        return res;
+    };
+
     useEffect(() => {
         const savedData = localStorage.getItem('last_session_state');
         if (savedData) {
@@ -118,8 +167,10 @@ export default function App() {
                     const data = await res.json();
                     if (!res.ok || data.error) throw new Error(data.error || 'Authentication failed');
                     setJiraToken(data.access_token);
+                    setJiraRefreshToken(data.refresh_token);
                     setJiraCloudId(data.cloud_id);
                     localStorage.setItem('jira_access_token', data.access_token);
+                    localStorage.setItem('jira_refresh_token', data.refresh_token);
                     localStorage.setItem('jira_cloud_id', data.cloud_id);
                     window.history.replaceState({}, document.title, window.location.pathname);
                     hideLoadingToast();
@@ -168,14 +219,6 @@ export default function App() {
         const scope = encodeURIComponent("read:jira-work read:jira-user read:board-scope:jira-software read:project:jira offline_access");
         const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
         window.location.href = authUrl;
-    };
-
-    const handleJiraDisconnect = () => {
-        localStorage.removeItem('jira_access_token');
-        localStorage.removeItem('jira_cloud_id');
-        setJiraToken(null);
-        setJiraCloudId(null);
-        showToast("Disconnected Jira.", 'success');
     };
 
     const getGoogleTokenAsync = async (forceRefresh = false) => {
@@ -237,8 +280,8 @@ export default function App() {
         if (!isAuto) showToast('Fetching Jira statuses...', 'loading');
         try {
             const targetUrl = `https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKey}/statuses`;
-            const res = await fetch(targetUrl, {
-                headers: { 'Authorization': 'Bearer ' + jiraToken, 'Accept': 'application/json' }
+            const res = await fetchWithJiraAuth(targetUrl, {
+                headers: { 'Accept': 'application/json' }
             });
             if (!res.ok) throw new Error("Project not found or access denied.");
             const data = await res.json();
@@ -717,7 +760,7 @@ export default function App() {
                 let boardId = '';
 
                 try {
-                    const pRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKeyInput}`, { headers: { 'Authorization': 'Bearer ' + jiraToken, 'Accept': 'application/json' } });
+                    const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKeyInput}`, { headers: { 'Accept': 'application/json' } });
                     if (pRes.ok) {
                         const pData = await pRes.json();
                         if (pData && pData.name) targetName = pData.name;
@@ -726,7 +769,7 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const bRes = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Authorization': 'Bearer ' + jiraToken, 'Accept': 'application/json' } });
+                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Accept': 'application/json' } });
                     if (bRes.ok) {
                         const bData = await bRes.json();
                         if (bData && bData.values && bData.values.length > 0) {
@@ -742,12 +785,18 @@ export default function App() {
                 while (jHasMore) {
                     const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
                     if (currentToken) payload.nextPageToken = currentToken;
-                    const res = await fetch(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                    
+                    const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
                         method: 'POST',
-                        headers: { 'Authorization': 'Bearer ' + jiraToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    if (!res.ok) throw new Error(`JQL Fetch failed`);
+                    
+                    if (!res.ok) {
+                        if (res.status === 400) throw new Error(`Invalid Project Key "${projectKeyInput}".`);
+                        throw new Error(`JQL Fetch failed (Status: ${res.status})`);
+                    }
+                    
                     const d = await res.json();
                     const items = d.issues || d.values || [];
                     items.forEach(iss => { if (iss && iss.key) issueMap.set(iss.key, iss); });
@@ -1186,7 +1235,7 @@ export default function App() {
                         {scopesList.map(scope => {
                             const isChecked = checkedScopesMap[scope] === undefined ? true : checkedScopesMap[scope];
                             return (
-                                <button key={scope} type="button" onClick={() => { setCheckedScopesMap(p => ({ ...p, !isChecked })); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-2 ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                                <button key={scope} type="button" onClick={() => { setCheckedScopesMap(p => ({ ...p, [scope]: !isChecked })); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-2 ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}>
                                     <span className="text-xs font-black">{isChecked ? '✓' : ''}</span>
                                     <span>{scope}</span>
                                     {!DEFAULT_SCOPES.includes(scope) && (
