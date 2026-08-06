@@ -35,6 +35,7 @@ export default function App() {
     const [linkShared, setLinkShared] = useState('');
 
     const [customNotesData, setCustomNotesData] = useState([]);
+    const [gameLinksData, setGameLinksData] = useState([]);
     const [scopesList, setScopesList] = useState([...DEFAULT_SCOPES]);
     const [checkedScopesMap, setCheckedScopesMap] = useState({});
     const [newScopeInput, setNewScopeInput] = useState('');
@@ -43,6 +44,11 @@ export default function App() {
     const [checkedJiraB, setCheckedJiraB] = useState({});
     const [checkedJiraUnverified, setCheckedJiraUnverified] = useState({});
     const [checkedJiraPending, setCheckedJiraPending] = useState({});
+
+    const [jiraParents, setJiraParents] = useState([]);
+    const [jiraSprints, setJiraSprints] = useState([]);
+    const [selectedParent, setSelectedParent] = useState('All');
+    const [selectedSprint, setSelectedSprint] = useState('All');
 
     const [outputReport, setOutputReport] = useState('');
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -136,6 +142,7 @@ export default function App() {
                 if (state.qcNames) setQcNames(state.qcNames);
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
+                if (Array.isArray(state.gameLinksData)) setGameLinksData(state.gameLinksData);
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
                 if (state.linkShared) setLinkShared(state.linkShared);
@@ -145,6 +152,10 @@ export default function App() {
                 if (state.checkedJiraStatuses_B) setCheckedJiraB(state.checkedJiraStatuses_B);
                 if (state.checkedJiraStatuses_Unverified) setCheckedJiraUnverified(state.checkedJiraStatuses_Unverified);
                 if (state.checkedJiraStatuses_Pending) setCheckedJiraPending(state.checkedJiraStatuses_Pending);
+                if (Array.isArray(state.jiraParents)) setJiraParents(state.jiraParents);
+                if (Array.isArray(state.jiraSprints)) setJiraSprints(state.jiraSprints);
+                if (state.selectedParent) setSelectedParent(state.selectedParent);
+                if (state.selectedSprint) setSelectedSprint(state.selectedSprint);
             } catch (e) { }
         } else {
             const initMap = {};
@@ -186,18 +197,18 @@ export default function App() {
 
     useEffect(() => {
         const config = {
-            sheetName, sheetTabName, dateReport, versionGame, dateGame,
-            versionApp, dateApp, qcNames, chkCustomNote, customNotes: customNotesData,
-            chkWebapp, chkApptek, linkShared, scopesList, checkedScopes: checkedScopesMap,
-            jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
-            checkedJiraStatuses_Unverified: checkedJiraUnverified,
-            checkedJiraStatuses_Pending: checkedJiraPending
+            sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
+            qcNames, chkCustomNote, customNotes: customNotesData, gameLinksData, chkWebapp, chkApptek, linkShared,
+            scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
+            checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
+            jiraParents, jiraSprints, selectedParent, selectedSprint
         };
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, chkCustomNote, customNotesData, chkWebapp, chkApptek, linkShared,
-        scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending
+        qcNames, chkCustomNote, customNotesData, gameLinksData, chkWebapp, chkApptek, linkShared,
+        scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
+        jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
 
     useEffect(() => {
@@ -268,29 +279,59 @@ export default function App() {
         }
     };
 
-    const fetchJiraStatuses = async (projectKey, isAuto = false) => {
+    const fetchJiraStatuses = async (projectKeysStr, isAuto = false) => {
         if (!jiraToken || !jiraCloudId) {
             if (!isAuto) initiateJiraSSO();
             return;
         }
-        if (!projectKey) {
-            if (!isAuto) showToast("Please enter a Project Key before loading statuses.", 'error');
+        if (!projectKeysStr) {
+            if (!isAuto) showToast("Please enter Project Key(s) before loading statuses.", 'error');
             return;
         }
-        if (!isAuto) showToast('Fetching Jira statuses...', 'loading');
+        if (!isAuto) showToast('Fetching Jira metadata...', 'loading');
         try {
-            const targetUrl = `https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKey}/statuses`;
-            const res = await fetchWithJiraAuth(targetUrl, {
-                headers: { 'Accept': 'application/json' }
-            });
-            if (!res.ok) throw new Error("Project not found or access denied.");
-            const data = await res.json();
+            const keys = projectKeysStr.split(',').map(k => k.trim()).filter(Boolean);
             const statusSet = new Set();
-            data.forEach(issueType => {
-                issueType.statuses.forEach(status => {
-                    statusSet.add(status.name.toUpperCase());
-                });
-            });
+            const sprintsMap = new Map();
+            const parentsMap = new Map();
+
+            for (const key of keys) {
+                try {
+                    const targetUrl = `https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${key}/statuses`;
+                    const res = await fetchWithJiraAuth(targetUrl, { headers: { 'Accept': 'application/json' } });
+                    if (res.ok) {
+                        const data = await res.json();
+                        data.forEach(issueType => {
+                            issueType.statuses.forEach(status => {
+                                statusSet.add(status.name.toUpperCase());
+                            });
+                        });
+                    }
+
+                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
+                    if (bRes.ok) {
+                        const bData = await bRes.json();
+                        if (bData && bData.values && bData.values.length > 0) {
+                            const boardId = bData.values[0].id;
+                            
+                            const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+                            if (sRes.ok) {
+                                const sData = await sRes.json();
+                                sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
+                            }
+                            
+                            const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/epic`, { headers: { 'Accept': 'application/json' } });
+                            if (eRes.ok) {
+                                const eData = await eRes.json();
+                                eData.values?.forEach(e => parentsMap.set(e.key, e.name || e.summary));
+                            }
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            if (statusSet.size === 0) throw new Error("Projects not found or access denied.");
+
             const list = Array.from(statusSet);
             setJiraStatuses(list);
             const mapB = {}, mapUnv = {}, mapPen = {};
@@ -303,14 +344,18 @@ export default function App() {
             setCheckedJiraB(mapB);
             setCheckedJiraUnverified(mapUnv);
             setCheckedJiraPending(mapPen);
+
+            setJiraSprints(Array.from(sprintsMap.entries()).map(([id, name]) => ({ id, name })));
+            setJiraParents(Array.from(parentsMap.entries()).map(([key, name]) => ({ key, name })));
+
             if (!isAuto) {
                 hideLoadingToast();
-                showToast("Loaded Jira statuses successfully!", 'success');
+                showToast("Loaded Jira metadata successfully!", 'success');
             }
         } catch (err) {
             if (!isAuto) {
                 hideLoadingToast();
-                showToast("Failed to load Jira statuses: " + err.message, 'error');
+                showToast("Failed to load Jira metadata: " + err.message, 'error');
             }
         }
     };
@@ -382,6 +427,22 @@ export default function App() {
         setCustomNotesData(prev => prev.filter((_, i) => i !== index));
     };
 
+    const handleAddGameLink = () => {
+        setGameLinksData(prev => [...prev, '']);
+    };
+
+    const handleGameLinkChange = (index, val) => {
+        setGameLinksData(prev => {
+            const next = [...prev];
+            next[index] = val;
+            return next;
+        });
+    };
+
+    const handleGameLinkDelete = (index) => {
+        setGameLinksData(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleAddScope = () => {
         const val = newScopeInput.trim();
         if (val && !scopesList.includes(val)) {
@@ -405,7 +466,7 @@ export default function App() {
             initiateJiraSSO();
             return;
         }
-        const projectKeyInput = sheetName.trim();
+        const projectKeysInput = sheetName.split(',').map(k => k.trim()).filter(Boolean);
         const qcNamesInput = qcNames.trim();
         const versionGameInput = versionGame.trim();
         const versionAppInput = versionApp.trim();
@@ -414,7 +475,7 @@ export default function App() {
         const sharedInputValue = linkShared.trim();
 
         let errors = [];
-        if (!projectKeyInput) errors.push("Project Key");
+        if (projectKeysInput.length === 0) errors.push("Project Key");
         if (!qcNamesInput) errors.push("QC Team");
         if (!versionGameInput) errors.push("Game Version");
         if (isAppRequired && !versionAppInput) errors.push("App Version");
@@ -434,8 +495,8 @@ export default function App() {
         setIsGenerating(true);
 
         try {
-            let finalGameId = projectKeyInput;
-            const actualSheetTabName = sheetTabName.trim() || projectKeyInput;
+            let finalGameId = projectKeysInput[0];
+            const actualSheetTabName = sheetTabName.trim() || projectKeysInput[0];
             const urlInput = "https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494";
 
             setOutputReport('');
@@ -755,15 +816,15 @@ export default function App() {
             let pendingStatusesFound = new Set();
 
             try {
-                let targetName = projectKeyInput;
-                let realKey = projectKeyInput;
+                let targetName = projectKeysInput.join(', ');
+                let realKey = projectKeysInput[0];
                 let boardId = '';
 
                 try {
-                    const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${projectKeyInput}`, { headers: { 'Accept': 'application/json' } });
+                    const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
                     if (pRes.ok) {
                         const pData = await pRes.json();
-                        if (pData && pData.name) targetName = pData.name;
+                        if (pData && pData.name && projectKeysInput.length === 1) targetName = pData.name;
                         if (pData && pData.key) realKey = pData.key;
                     }
                 } catch (e) { }
@@ -778,7 +839,11 @@ export default function App() {
                     }
                 } catch (e) { }
 
-                const jqlString = `project = "${projectKeyInput}" AND issuetype in (Bug, Improvement, Question) ORDER BY created DESC`;
+                let jqlString = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND issuetype in (Bug, Improvement, Question)`;
+                if (selectedParent !== 'All') jqlString += ` AND (parent = "${selectedParent}" OR "Epic Link" = "${selectedParent}")`;
+                if (selectedSprint !== 'All') jqlString += ` AND sprint = ${selectedSprint}`;
+                jqlString += ` ORDER BY created DESC`;
+
                 const issueMap = new Map();
                 let jHasMore = true;
                 let currentToken = null;
@@ -793,7 +858,7 @@ export default function App() {
                     });
                     
                     if (!res.ok) {
-                        if (res.status === 400) throw new Error(`Invalid Project Key "${projectKeyInput}".`);
+                        if (res.status === 400) throw new Error(`Invalid Project Key or Filter.`);
                         throw new Error(`JQL Fetch failed (Status: ${res.status})`);
                     }
                     
@@ -883,9 +948,10 @@ export default function App() {
                                 const printPriority = (priority) => {
                                     if (typeContainers['BUG'][tag][priority]) {
                                         const tickets = typeContainers['BUG'][tag][priority];
-                                        jiraBody += `- ${priority}: ${tickets.length}\n`;if (totalInTag === 1 && (priority === 'High' || priority === 'Highest')) {
-    tickets.forEach(t => { jiraBody += `  + Ticket ${t.key.split('-').pop()}: ${t.summary}\n`; });
-}
+                                        jiraBody += `- ${priority}: ${tickets.length}\n`;
+                                        if (totalInTag === 1 && (priority === 'High' || priority === 'Highest')) {
+                                            tickets.forEach(t => { jiraBody += `  + Ticket ${t.key.split('-').pop()}: ${t.summary}\n`; });
+                                        }
                                     }
                                 };
                                 PRIORITY_ORDER.forEach(printPriority);
@@ -939,7 +1005,7 @@ export default function App() {
                 return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fallback;
             };
             const inputReportDate = formatDate(dateReport, currentDateStr);
-            let baseBoardName = (detectedBoardName || projectKeyInput).replace(/^\[.*?\]\s*/, '').replace(/\s*-\s*/g, ' - ').trim();
+            let baseBoardName = (detectedBoardName || projectKeysInput.join(', ')).replace(/^\[.*?\]\s*/, '').replace(/\s*-\s*/g, ' - ').trim();
             let customHeader = `Report for ${baseBoardName} (${inputReportDate})\n`;
             if (versionGameInput) {
                 const vGame = versionGameInput.split('/').map(v => v.trim().toLowerCase().startsWith('v') ? v.trim() : 'v' + v.trim()).join('/');
@@ -968,6 +1034,10 @@ export default function App() {
                     linksCollected.push("- App: " + (appLinkVal || ""));
                 }
             }
+
+            gameLinksData.forEach(link => {
+                if (link.trim()) linksCollected.push("- Game Link: " + link.trim());
+            });
             
             linksCollected.push("- Jira: " + autoJiraLink);
             linksCollected.push("- Testcase: " + (autoTestcaseLink || "No link found in cell A1"));
@@ -1038,7 +1108,7 @@ export default function App() {
                     </h2>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600">Project Key</label>
+                        <label className="text-xs font-bold text-slate-600">Project Key(s)</label>
                         <div className="flex gap-2.5">
                             <input
                                 ref={projectKeyRef}
@@ -1048,12 +1118,29 @@ export default function App() {
                                     setSheetName(e.target.value);
                                     setFormErrors(prev => prev.filter(err => err !== "Project Key"));
                                 }}
-                                placeholder="9707"
+                                placeholder="e.g. 9707, WS019775"
                                 className={`flex-1 h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("Project Key") ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'}`}
                             />
                             <button type="button" onClick={handleLoadStatuses} className="px-4 h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
-                                <span>↻ Sync Statuses</span>
+                                <span>↻ Sync Meta</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-600">Sprint Filter</label>
+                            <select value={selectedSprint} onChange={e => setSelectedSprint(e.target.value)} className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white">
+                                <option value="All">All Sprints</option>
+                                {jiraSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-600">Parent/Epic Filter</label>
+                            <select value={selectedParent} onChange={e => setSelectedParent(e.target.value)} className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white">
+                                <option value="All">All Parents</option>
+                                {jiraParents.map(p => <option key={p.key} value={p.key}>{p.name} ({p.key})</option>)}
+                            </select>
                         </div>
                     </div>
 
@@ -1212,6 +1299,19 @@ export default function App() {
                             <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
                     )}
+
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
+                        <div className="flex justify-between items-center">
+                            <label className="text-xs font-bold text-slate-700">Game Links</label>
+                            <button type="button" onClick={handleAddGameLink} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Game Link</button>
+                        </div>
+                        {gameLinksData.map((link, idx) => (
+                            <div key={idx} className="flex gap-2">
+                                <input type="text" value={link} onChange={e => handleGameLinkChange(idx, e.target.value)} placeholder="https://..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                                <button type="button" onClick={() => handleGameLinkDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
+                            </div>
+                        ))}
+                    </div>
 
                     <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
                         <div className="flex justify-between items-center">
