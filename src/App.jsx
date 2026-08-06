@@ -35,7 +35,6 @@ export default function App() {
     const [linkShared, setLinkShared] = useState('');
 
     const [customNotesData, setCustomNotesData] = useState([]);
-    const [gameLinksData, setGameLinksData] = useState([]);
     const [customIframesData, setCustomIframesData] = useState([]);
     const [scopesList, setScopesList] = useState([...DEFAULT_SCOPES]);
     const [checkedScopesMap, setCheckedScopesMap] = useState({});
@@ -143,7 +142,6 @@ export default function App() {
                 if (state.qcNames) setQcNames(state.qcNames);
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
-                if (Array.isArray(state.gameLinksData)) setGameLinksData(state.gameLinksData);
                 if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
@@ -200,7 +198,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, chkCustomNote, customNotes: customNotesData, gameLinksData, customIframesData, chkWebapp, chkApptek, linkShared,
+            qcNames, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, linkShared,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -208,7 +206,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, chkCustomNote, customNotesData, gameLinksData, customIframesData, chkWebapp, chkApptek, linkShared,
+        qcNames, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, linkShared,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
@@ -436,22 +434,6 @@ export default function App() {
 
     const handleNoteDelete = (index) => {
         setCustomNotesData(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleAddGameLink = () => {
-        setGameLinksData(prev => [...prev, '']);
-    };
-
-    const handleGameLinkChange = (index, val) => {
-        setGameLinksData(prev => {
-            const next = [...prev];
-            next[index] = val;
-            return next;
-        });
-    };
-
-    const handleGameLinkDelete = (index) => {
-        setGameLinksData(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleAddIframe = () => {
@@ -1049,10 +1031,10 @@ export default function App() {
             let linksCollected = [];
             
             const validIframes = customIframesData.filter(link => link.trim() !== "");
-            if (validIframes.length > 0) {
-                validIframes.forEach(link => {
-                    linksCollected.push("- Iframe: " + link.trim());
-                });
+            if (validIframes.length === 1) {
+                linksCollected.push("- Iframe: " + validIframes[0].trim());
+            } else if (validIframes.length > 1) {
+                linksCollected.push("- Iframe:\n  + " + validIframes.map(l => l.trim()).join("\n  + "));
             } else {
                 linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
             }
@@ -1070,10 +1052,6 @@ export default function App() {
                     linksCollected.push("- App: " + (appLinkVal || ""));
                 }
             }
-
-            gameLinksData.forEach(link => {
-                if (link.trim()) linksCollected.push("- Game Link: " + link.trim());
-            });
             
             linksCollected.push("- Jira: " + autoJiraLink);
             linksCollected.push("- Testcase: " + (autoTestcaseLink || "No link found in cell A1"));
@@ -1345,19 +1323,6 @@ export default function App() {
                             <div key={idx} className="flex gap-2">
                                 <input type="text" value={link} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="https://..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                                 <button type="button" onClick={() => handleIframeDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
-                        <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-slate-700">Game Links</label>
-                            <button type="button" onClick={handleAddGameLink} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Game Link</button>
-                        </div>
-                        {gameLinksData.map((link, idx) => (
-                            <div key={idx} className="flex gap-2">
-                                <input type="text" value={link} onChange={e => handleGameLinkChange(idx, e.target.value)} placeholder="https://..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-                                <button type="button" onClick={() => handleGameLinkDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
                             </div>
                         ))}
                     </div>
