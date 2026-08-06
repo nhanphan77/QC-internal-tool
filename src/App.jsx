@@ -366,7 +366,6 @@ export default function App() {
                     });
                     return next;
                 });
-
                 setCheckedJiraPending(prev => {
                     const next = { ...prev };
                     list.forEach(s => {
