@@ -36,7 +36,7 @@ export default function App() {
 
     const [customNotesData, setCustomNotesData] = useState([]);
     const [customIframesData, setCustomIframesData] = useState([]);
-    const [gameLinksData, setGameLinksData] = useState([]);
+
     const [scopesList, setScopesList] = useState([...DEFAULT_SCOPES]);
     const [checkedScopesMap, setCheckedScopesMap] = useState({});
     const [newScopeInput, setNewScopeInput] = useState('');
@@ -63,6 +63,7 @@ export default function App() {
     const qcTeamRef = useRef(null);
     const gameVersionRef = useRef(null);
     const appVersionRef = useRef(null);
+    const sheetTabNameRef = useRef(null);
 
     const syncTimeoutRef = useRef(null);
 
@@ -476,22 +477,6 @@ export default function App() {
         setCustomIframesData(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleAddGameLink = () => {
-        setGameLinksData(prev => [...prev, '']);
-    };
-
-    const handleGameLinkChange = (index, val) => {
-        setGameLinksData(prev => {
-            const next = [...prev];
-            next[index] = val;
-            return next;
-        });
-    };
-
-    const handleGameLinkDelete = (index) => {
-        setGameLinksData(prev => prev.filter((_, i) => i !== index));
-    };
-
     const handleAddScope = () => {
         const val = newScopeInput.trim();
         if (val && !scopesList.includes(val)) {
@@ -519,12 +504,14 @@ export default function App() {
         const qcNamesInput = qcNames.trim();
         const versionGameInput = versionGame.trim();
         const versionAppInput = versionApp.trim();
+        const sheetTabNameInput = sheetTabName.trim();
         const isAppRequired = chkWebapp || chkApptek;
         const selectedScopes = scopesList.filter(scope => checkedScopesMap[scope] === undefined ? true : checkedScopesMap[scope]);
         const sharedInputValue = linkShared.trim();
 
         let errors = [];
         if (projectKeysInput.length === 0) errors.push("Project Key");
+        if (!sheetTabNameInput) errors.push("Sheet Tab Name");
         if (!qcNamesInput) errors.push("QC Team");
         if (!versionGameInput) errors.push("Game Version");
         if (isAppRequired && !versionAppInput) errors.push("App Version");
@@ -538,6 +525,7 @@ export default function App() {
             else if (errors.includes("QC Team") && qcTeamRef.current) qcTeamRef.current.focus();
             else if (errors.includes("Game Version") && gameVersionRef.current) gameVersionRef.current.focus();
             else if (errors.includes("App Version") && appVersionRef.current) appVersionRef.current.focus();
+            else if (errors.includes("Sheet Tab Name") && sheetTabNameRef.current) sheetTabNameRef.current.focus();
             return;
         }
 
@@ -545,7 +533,7 @@ export default function App() {
 
         try {
             let finalGameId = projectKeysInput[0];
-            const actualSheetTabName = sheetTabName.trim() || projectKeysInput[0];
+            const actualSheetTabName = sheetTabNameInput;
             const urlInput = "https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494";
 
             setOutputReport('');
@@ -1093,10 +1081,6 @@ export default function App() {
                 }
             }
 
-            gameLinksData.forEach(link => {
-                if (link.trim()) linksCollected.push("- Game Link: " + link.trim());
-            });
-
             linksCollected.push("- Jira: " + autoJiraLink);
             linksCollected.push("- Testcase: " + (autoTestcaseLink || "No link found in cell A1"));
             if (linksCollected.length > 0) customHeader += "Link:\n" + linksCollected.join('\n') + "\n";
@@ -1189,14 +1173,14 @@ export default function App() {
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-slate-600">Sprint Filter</label>
                             <select value={selectedSprint} onChange={e => setSelectedSprint(e.target.value)} className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white">
-                                <option value="All">All Sprints</option>
+                                <option value="All">Default</option>
                                 {jiraSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-slate-600">Parent/Epic Filter</label>
                             <select value={selectedParent} onChange={e => setSelectedParent(e.target.value)} className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white">
-                                <option value="All">All Parents</option>
+                                <option value="All">Default</option>
                                 {jiraParents.map(p => <option key={p.key} value={p.key}>{p.name} ({p.key})</option>)}
                             </select>
                         </div>
@@ -1204,8 +1188,18 @@ export default function App() {
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-slate-600">Sheet Tab Name</label>
-                            <input type="text" value={sheetTabName} onChange={e => setSheetTabName(e.target.value)} placeholder="Sheet Name" className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                            <label className="text-xs font-bold text-slate-600">Sheet Name</label>
+                            <input
+                                ref={sheetTabNameRef}
+                                type="text"
+                                value={sheetTabName}
+                                onChange={e => {
+                                    setSheetTabName(e.target.value);
+                                    setFormErrors(prev => prev.filter(err => err !== "Sheet Name"));
+                                }}
+                                placeholder="Sheet Name"
+                                className={`h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("Sheet Name") ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'}`}
+                            />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
@@ -1239,7 +1233,7 @@ export default function App() {
                         </button>
 
                         {isAccordionOpen && (
-                            <div className="p-3 border-t border-slate-200 grid grid-cols-3 gap-3 bg-white">
+                            <div className="p-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white">
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
                                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count tickets</span>
