@@ -309,7 +309,7 @@ export default function App() {
                             });
                         });
                     }
-                } catch (e) {}
+                } catch (e) { }
 
                 try {
                     const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
@@ -323,10 +323,10 @@ export default function App() {
                                     const sData = await sRes.json();
                                     sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
                                 }
-                            } catch (e) {}
+                            } catch (e) { }
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
 
                 try {
                     const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
@@ -338,7 +338,7 @@ export default function App() {
                         const eData = await eRes.json();
                         eData.issues?.forEach(iss => parentsMap.set(iss.key, iss.fields?.summary || iss.key));
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (statusSet.size > 0) {
@@ -877,18 +877,18 @@ export default function App() {
                 while (jHasMore) {
                     const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
                     if (currentToken) payload.nextPageToken = currentToken;
-                    
+
                     const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    
+
                     if (!res.ok) {
                         if (res.status === 400) throw new Error(`Invalid Project Key or Filter.`);
                         throw new Error(`JQL Fetch failed (Status: ${res.status})`);
                     }
-                    
+
                     const d = await res.json();
                     const items = d.issues || d.values || [];
                     items.forEach(iss => { if (iss && iss.key) issueMap.set(iss.key, iss); });
@@ -1047,7 +1047,7 @@ export default function App() {
             if (chkApptek) envParts.push("App");
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
             let linksCollected = [];
-            
+
             const validIframes = customIframesData.filter(link => link.trim() !== "");
             if (validIframes.length === 1) {
                 linksCollected.push("- Iframe: " + validIframes[0].trim());
@@ -1056,7 +1056,7 @@ export default function App() {
             } else {
                 linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
             }
-            
+
             if (chkWebapp) {
                 let webappVal = sharedInputValue;
                 linksCollected.push("- Webapp: " + (webappVal && !isNaN(webappVal) ? `https://webapp${webappVal}tek.enostd.gay/` : webappVal));
@@ -1074,7 +1074,7 @@ export default function App() {
             gameLinksData.forEach(link => {
                 if (link.trim()) linksCollected.push("- Game Link: " + link.trim());
             });
-            
+
             linksCollected.push("- Jira: " + autoJiraLink);
             linksCollected.push("- Testcase: " + (autoTestcaseLink || "No link found in cell A1"));
             if (linksCollected.length > 0) customHeader += "Link:\n" + linksCollected.join('\n') + "\n";
@@ -1140,7 +1140,7 @@ export default function App() {
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-                        <span className="text-indigo-600 font-mono">Project Details</span> 
+                        <span className="text-indigo-600 font-mono">Project Details</span>
                     </h2>
 
                     <div className="flex flex-col gap-1.5">
@@ -1227,12 +1227,15 @@ export default function App() {
                                             <button type="button" onClick={() => toggleAllJiraCategory('B', false)} className="text-slate-500 hover:underline">None</button>
                                         </div>
                                     </div>
-                                    {statusPillList.map(s => (
-                                        <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !p[s] }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${checkedJiraB[s] ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                            <span className="text-[10px] font-bold truncate">{s}</span>
-                                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${checkedJiraB[s] ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{checkedJiraB[s] ? '✓' : ''}</span>
-                                        </div>
-                                    ))}
+                                    {statusPillList.map(s => {
+                                        const isChecked = !!checkedJiraB[s];
+                                        return (
+                                            <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                                <span className="text-[10px] font-bold truncate">{s}</span>
+                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -1244,12 +1247,15 @@ export default function App() {
                                             <button type="button" onClick={() => toggleAllJiraCategory('Unverified', false)} className="text-slate-500 hover:underline">None</button>
                                         </div>
                                     </div>
-                                    {statusPillList.map(s => (
-                                        <div key={s} onClick={() => setCheckedJiraUnverified(p => ({ ...p, [s]: !p[s] }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${checkedJiraUnverified[s] ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                            <span className="text-[10px] font-bold truncate">{s}</span>
-                                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${checkedJiraUnverified[s] ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-slate-300'}`}>{checkedJiraUnverified[s] ? '✓' : ''}</span>
-                                        </div>
-                                    ))}
+                                    {statusPillList.map(s => {
+                                        const isChecked = !!checkedJiraUnverified[s];
+                                        return (
+                                            <div key={s} onClick={() => setCheckedJiraUnverified(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                                <span className="text-[10px] font-bold truncate">{s}</span>
+                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -1261,12 +1267,15 @@ export default function App() {
                                             <button type="button" onClick={() => toggleAllJiraCategory('Pending', false)} className="text-slate-500 hover:underline">None</button>
                                         </div>
                                     </div>
-                                    {statusPillList.map(s => (
-                                        <div key={s} onClick={() => setCheckedJiraPending(p => ({ ...p, [s]: !p[s] }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${checkedJiraPending[s] ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                            <span className="text-[10px] font-bold truncate">{s}</span>
-                                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${checkedJiraPending[s] ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{checkedJiraPending[s] ? '✓' : ''}</span>
-                                        </div>
-                                    ))}
+                                    {statusPillList.map(s => {
+                                        const isChecked = !!checkedJiraPending[s];
+                                        return (
+                                            <div key={s} onClick={() => setCheckedJiraPending(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                                <span className="text-[10px] font-bold truncate">{s}</span>
+                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -1275,7 +1284,7 @@ export default function App() {
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-                        <span className="text-indigo-600 font-mono">Environments</span> 
+                        <span className="text-indigo-600 font-mono">Environments</span>
                     </h2>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -1380,7 +1389,7 @@ export default function App() {
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
-                            <span className="text-indigo-600 font-mono">Scope of Testing</span> 
+                            <span className="text-indigo-600 font-mono">Scope of Testing</span>
                         </h2>
                         <div className="flex gap-1.5 text-xs">
                             <button type="button" onClick={() => { toggleAllScopes(true); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-lg transition-all">Select All</button>
