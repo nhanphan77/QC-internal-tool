@@ -1375,19 +1375,6 @@ export default function App() {
 
                     <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
                         <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-slate-700">Game Links</label>
-                            <button type="button" onClick={handleAddGameLink} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Game Link</button>
-                        </div>
-                        {gameLinksData.map((link, idx) => (
-                            <div key={idx} className="flex gap-2">
-                                <input type="text" value={link} onChange={e => handleGameLinkChange(idx, e.target.value)} placeholder="https://..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-                                <button type="button" onClick={() => handleGameLinkDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
-                        <div className="flex justify-between items-center">
                             <label className="text-xs font-bold text-slate-700">Notes</label>
                             <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Note Line</button>
                         </div>
