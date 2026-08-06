@@ -145,7 +145,6 @@ export default function App() {
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
                 if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
-                if (Array.isArray(state.gameLinksData)) setGameLinksData(state.gameLinksData);
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
                 if (state.linkShared) setLinkShared(state.linkShared);
@@ -201,7 +200,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, chkCustomNote, customNotes: customNotesData, customIframesData, gameLinksData, chkWebapp, chkApptek, linkShared,
+            qcNames, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, linkShared,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -209,7 +208,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, chkCustomNote, customNotesData, customIframesData, gameLinksData, chkWebapp, chkApptek, linkShared,
+        qcNames, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, linkShared,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
