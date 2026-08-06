@@ -225,7 +225,7 @@ export default function App() {
         return () => {
             if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
         };
-    }, [sheetName, jiraToken, jiraCloudId]);
+    }, [sheetName]);
 
     const initiateJiraSSO = () => {
         const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
@@ -344,16 +344,39 @@ export default function App() {
             if (statusSet.size > 0) {
                 const list = Array.from(statusSet);
                 setJiraStatuses(list);
-                const mapB = {}, mapUnv = {}, mapPen = {};
-                list.forEach(s => {
-                    const cleanS = s.replace(/[^A-Z0-9]/g, '');
-                    mapB[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED'].includes(cleanS);
-                    mapUnv[s] = ['DEPLOYED', 'INTESTING'].includes(cleanS);
-                    mapPen[s] = ['PENDING', 'WAITFOR', 'WAITING'].some(p => cleanS.includes(p));
+
+                setCheckedJiraB(prev => {
+                    const next = { ...prev };
+                    list.forEach(s => {
+                        if (next[s] === undefined) { // Chỉ gán mặc định nếu status này mới xuất hiện
+                            const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                            next[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED'].includes(cleanS);
+                        }
+                    });
+                    return next;
                 });
-                setCheckedJiraB(mapB);
-                setCheckedJiraUnverified(mapUnv);
-                setCheckedJiraPending(mapPen);
+
+                setCheckedJiraUnverified(prev => {
+                    const next = { ...prev };
+                    list.forEach(s => {
+                        if (next[s] === undefined) {
+                            const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                            next[s] = ['DEPLOYED', 'INTESTING'].includes(cleanS);
+                        }
+                    });
+                    return next;
+                });
+
+                setCheckedJiraPending(prev => {
+                    const next = { ...prev };
+                    list.forEach(s => {
+                        if (next[s] === undefined) {
+                            const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                            next[s] = ['PENDING', 'WAITFOR', 'WAITING'].some(p => cleanS.includes(p));
+                        }
+                    });
+                    return next;
+                });
             }
 
             setJiraSprints(Array.from(sprintsMap.entries()).map(([id, name]) => ({ id, name })));
