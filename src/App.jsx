@@ -6,9 +6,9 @@ const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
     "Logic", "Logic UI", "UI", "Interruption", "Sound",
-    "Tutorial/Trial", "Data", "Promotion", "Common Behaviour",
+    "Tutorial/Trial", "Data", " promotion", "Common Behaviour",
     "Compatibility", "UAT", "Regression Test", "Check Feedback",
-    "Crosscheck", "Betfail", "Ban & Maintainance"
+    "Crosscheck", "BetfailBan&Maintainance"
 ];
 
 const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
@@ -36,6 +36,7 @@ export default function App() {
 
     const [customNotesData, setCustomNotesData] = useState([]);
     const [gameLinksData, setGameLinksData] = useState([]);
+    const [customIframesData, setCustomIframesData] = useState([]);
     const [scopesList, setScopesList] = useState([...DEFAULT_SCOPES]);
     const [checkedScopesMap, setCheckedScopesMap] = useState({});
     const [newScopeInput, setNewScopeInput] = useState('');
@@ -143,6 +144,7 @@ export default function App() {
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
                 if (Array.isArray(state.gameLinksData)) setGameLinksData(state.gameLinksData);
+                if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
                 if (state.linkShared) setLinkShared(state.linkShared);
@@ -198,7 +200,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, chkCustomNote, customNotes: customNotesData, gameLinksData, chkWebapp, chkApptek, linkShared,
+            qcNames, chkCustomNote, customNotes: customNotesData, gameLinksData, customIframesData, chkWebapp, chkApptek, linkShared,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -206,7 +208,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, chkCustomNote, customNotesData, gameLinksData, chkWebapp, chkApptek, linkShared,
+        qcNames, chkCustomNote, customNotesData, gameLinksData, customIframesData, chkWebapp, chkApptek, linkShared,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
@@ -307,43 +309,52 @@ export default function App() {
                             });
                         });
                     }
+                } catch (e) {}
 
+                try {
                     const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
                     if (bRes.ok) {
                         const bData = await bRes.json();
                         if (bData && bData.values && bData.values.length > 0) {
                             const boardId = bData.values[0].id;
-                            
-                            const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
-                            if (sRes.ok) {
-                                const sData = await sRes.json();
-                                sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
-                            }
-                            
-                            const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/epic`, { headers: { 'Accept': 'application/json' } });
-                            if (eRes.ok) {
-                                const eData = await eRes.json();
-                                eData.values?.forEach(e => parentsMap.set(e.key, e.name || e.summary));
-                            }
+                            try {
+                                const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+                                if (sRes.ok) {
+                                    const sData = await sRes.json();
+                                    sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
+                                }
+                            } catch (e) {}
                         }
                     }
-                } catch (e) { }
+                } catch (e) {}
+
+                try {
+                    const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ jql: `project = "${key}" AND issuetype = Epic`, maxResults: 100, fields: ["summary"] })
+                    });
+                    if (eRes.ok) {
+                        const eData = await eRes.json();
+                        eData.issues?.forEach(iss => parentsMap.set(iss.key, iss.fields?.summary || iss.key));
+                    }
+                } catch (e) {}
             }
 
-            if (statusSet.size === 0) throw new Error("Projects not found or access denied.");
-
-            const list = Array.from(statusSet);
-            setJiraStatuses(list);
-            const mapB = {}, mapUnv = {}, mapPen = {};
-            list.forEach(s => {
-                const cleanS = s.replace(/[^A-Z0-9]/g, '');
-                mapB[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED'].includes(cleanS);
-                mapUnv[s] = ['DEPLOYED', 'INTESTING'].includes(cleanS);
-                mapPen[s] = ['PENDING', 'WAITFOR', 'WAITING'].some(p => cleanS.includes(p));
-            });
-            setCheckedJiraB(mapB);
-            setCheckedJiraUnverified(mapUnv);
-            setCheckedJiraPending(mapPen);
+            if (statusSet.size > 0) {
+                const list = Array.from(statusSet);
+                setJiraStatuses(list);
+                const mapB = {}, mapUnv = {}, mapPen = {};
+                list.forEach(s => {
+                    const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                    mapB[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED'].includes(cleanS);
+                    mapUnv[s] = ['DEPLOYED', 'INTESTING'].includes(cleanS);
+                    mapPen[s] = ['PENDING', 'WAITFOR', 'WAITING'].some(p => cleanS.includes(p));
+                });
+                setCheckedJiraB(mapB);
+                setCheckedJiraUnverified(mapUnv);
+                setCheckedJiraPending(mapPen);
+            }
 
             setJiraSprints(Array.from(sprintsMap.entries()).map(([id, name]) => ({ id, name })));
             setJiraParents(Array.from(parentsMap.entries()).map(([key, name]) => ({ key, name })));
@@ -441,6 +452,22 @@ export default function App() {
 
     const handleGameLinkDelete = (index) => {
         setGameLinksData(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAddIframe = () => {
+        setCustomIframesData(prev => [...prev, '']);
+    };
+
+    const handleIframeChange = (index, val) => {
+        setCustomIframesData(prev => {
+            const next = [...prev];
+            next[index] = val;
+            return next;
+        });
+    };
+
+    const handleIframeDelete = (index) => {
+        setCustomIframesData(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleAddScope = () => {
@@ -1019,7 +1046,16 @@ export default function App() {
             if (chkWebapp) envParts.push("Webapp");
             if (chkApptek) envParts.push("App");
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
-            let linksCollected = [`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`];
+            let linksCollected = [];
+            
+            const validIframes = customIframesData.filter(link => link.trim() !== "");
+            if (validIframes.length > 0) {
+                validIframes.forEach(link => {
+                    linksCollected.push("- Iframe: " + link.trim());
+                });
+            } else {
+                linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
+            }
             
             if (chkWebapp) {
                 let webappVal = sharedInputValue;
@@ -1299,6 +1335,19 @@ export default function App() {
                             <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
                     )}
+
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
+                        <div className="flex justify-between items-center">
+                            <label className="text-xs font-bold text-slate-700">Custom Iframes</label>
+                            <button type="button" onClick={handleAddIframe} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Iframe</button>
+                        </div>
+                        {customIframesData.map((link, idx) => (
+                            <div key={idx} className="flex gap-2">
+                                <input type="text" value={link} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="https://..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                                <button type="button" onClick={() => handleIframeDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
+                            </div>
+                        ))}
+                    </div>
 
                     <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
                         <div className="flex justify-between items-center">
