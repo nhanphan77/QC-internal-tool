@@ -31,7 +31,7 @@ export default function App() {
     const [dateReport, setDateReport] = useState('');
     const [qcNames, setQcNames] = useState('');
     const [testingStatus, setTestingStatus] = useState('In-testing');
-    const [zeroTicketStatus, setZeroTicketStatus] = useState('Passed');
+    const [buildStatus, setbuildStatus] = useState('Passed');
 
     const [versionGame, setVersionGame] = useState('');
     const [dateGame, setDateGame] = useState('');
@@ -154,7 +154,7 @@ export default function App() {
                 if (state.dateApp) setDateApp(state.dateApp);
                 if (state.qcNames) setQcNames(state.qcNames);
                 if (state.testingStatus !== undefined) setTestingStatus(state.testingStatus);
-                if (state.zeroTicketStatus !== undefined) setZeroTicketStatus(state.zeroTicketStatus);
+                if (state.buildStatus !== undefined) setbuildStatus(state.buildStatus);
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
                 if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
@@ -215,7 +215,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, testingStatus, zeroTicketStatus, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+            qcNames, testingStatus, buildStatus, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -223,7 +223,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, testingStatus, zeroTicketStatus, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+        qcNames, testingStatus, buildStatus, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
@@ -850,7 +850,7 @@ export default function App() {
                         subGroupItems.forEach(item => {
                             let textVal = item.isMergedString ? item.mergedVal : item.displayValue;
                             if (item.statusKey === 'IN PROGRESS' && textVal && textVal.includes('%')) {
-                                textVal = textVal.replace('%', ' remain %');
+                                textVal = `Remain ${textVal}`;
                             }
                             let lineText = textVal ? `  + ${item.name}: ${textVal}\n` : `  + ${item.name}\n`;
                             globalMergedLines.push({ text: lineText, index: item.originalIndex || 9999, statusKey: item.statusKey });
@@ -859,11 +859,7 @@ export default function App() {
                     ['DONE', 'IN PROGRESS', 'REMAINS'].forEach(statusKey => {
                         let groupPercent = statusKey === 'DONE' ? doneHeaderPercent : (statusKey === 'IN PROGRESS' ? inProgressHeaderPercent : remainingHeaderPercent);
                         if (groupPercent !== '0.00%' && groupPercent !== '0%' && groupPercent !== '0.0%' && parseFloat(groupPercent) !== 0) {
-                            if (statusKey === 'REMAINS') {
-                                finalReport += `- REMAINS:\n`;
-                            } else {
-                                finalReport += `- ${statusKey}: ${groupPercent}\n`;
-                            }
+                            finalReport += `- ${statusKey}: ${groupPercent}\n`;
                             let linesForSection = globalMergedLines.filter(l => l.statusKey === statusKey).sort((a, b) => a.index - b.index);
                             linesForSection.forEach(l => { finalReport += l.text; });
                         }
@@ -995,7 +991,7 @@ export default function App() {
                     if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
                     buildStatusStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
                 } else {
-                    buildStatusStr = zeroTicketStatus || "Passed";
+                    buildStatusStr = buildStatus || "Passed";
                 }
 
                 let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
@@ -1114,6 +1110,9 @@ export default function App() {
                 linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
             }
 
+            if (chkPreprod) {
+                linksCollected.push("- Preprod: " + (preprodInputValue || ""));
+            }
             if (chkWebapp) {
                 let webappVal = sharedInputValue;
                 linksCollected.push("- Webapp: " + (webappVal && !isNaN(webappVal) ? `https://webapp${webappVal}tek.enostd.gay/` : webappVal));
@@ -1126,9 +1125,6 @@ export default function App() {
                 } else {
                     linksCollected.push("- App: " + (appLinkVal || ""));
                 }
-            }
-            if (chkPreprod) {
-                linksCollected.push("- Preprod: " + (preprodInputValue || ""));
             }
 
             if (linksCollected.length > 0) {
@@ -1286,7 +1282,7 @@ export default function App() {
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold text-slate-600">Build Status</label>
-                            <input type="text" value={zeroTicketStatus} onChange={e => setZeroTicketStatus(e.target.value)} placeholder="Passed, Failed..." className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                            <input type="text" value={buildStatus} onChange={e => setbuildStatus(e.target.value)} placeholder="Passed, Failed..." className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
                     </div>
 
@@ -1456,27 +1452,30 @@ export default function App() {
                             <label className="text-xs font-bold text-slate-700">Custom Iframes</label>
                             <button type="button" onClick={handleAddIframe} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Iframe</button>
                         </div>
-                        {customIframesData.map((link, idx) => (
-                            <div key={idx} className="flex gap-2">
-                                <input type="text" value={link} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="https://..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-                                <button type="button" onClick={() => handleIframeDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
+                        {customIframesData.map((iframeUrl, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                                <input type="text" value={iframeUrl} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="Custom iframe link..." className="flex-1 h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                                <button type="button" onClick={() => handleIframeDelete(idx)} className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
                             </div>
                         ))}
                     </div>
 
                     <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-2">
                         <div className="flex justify-between items-center">
-                            <label className="text-xs font-bold text-slate-700">Notes</label>
-                            <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Note Line</button>
+                            <label className="text-xs font-bold text-slate-700">Custom Notes</label>
+                            <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Note Block</button>
                         </div>
-                        {customNotesData.map((note, idx) => (
+                        {customNotesData.map((noteText, idx) => (
                             <div key={idx} className="flex gap-2 items-start">
-                                <textarea value={note} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Add note Line..." className="flex-1 min-h-[40px] px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white resize-y" rows={1} />
-                                <button type="button" onClick={() => handleNoteDelete(idx)} className="h-10 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
+                                <textarea value={noteText} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Custom notes..." rows="2" className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white resize-y" />
+                                <button type="button" onClick={() => handleNoteDelete(idx)} className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all mt-1">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
                             </div>
                         ))}
                     </div>
-
                 </section>
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
@@ -1484,82 +1483,106 @@ export default function App() {
                         <h2 className="text-sm font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
                             <span className="text-indigo-600 font-mono">Scope of Testing</span>
                         </h2>
-                        <div className="flex gap-1.5 text-xs">
-                            <button type="button" onClick={() => { toggleAllScopes(true); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-lg transition-all">Select All</button>
-                            <button type="button" onClick={() => toggleAllScopes(false)} className="px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium rounded-lg transition-all">Deselect All</button>
+                        <div className="flex gap-2 text-xs">
+                            <button type="button" onClick={() => toggleAllScopes(true)} className="text-indigo-600 hover:underline font-bold">Select All</button>
+                            <span className="text-slate-300">|</span>
+                            <button type="button" onClick={() => toggleAllScopes(false)} className="text-slate-500 hover:underline">Deselect All</button>
                         </div>
                     </div>
 
-                    <div className={`flex flex-wrap gap-2.5 min-h-[220px] content-start p-1.5 rounded-xl border transition-colors ${formErrors.includes("Scope of Testing (at least 1)") ? 'border-rose-500 bg-rose-50/30' : 'border-transparent'}`}>
+                    <div className="flex gap-2">
+                        <input type="text" value={newScopeInput} onChange={e => setNewScopeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddScope()} placeholder="Add custom scope..." className="flex-1 h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                        <button type="button" onClick={handleAddScope} className="px-3 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-300 transition-all">+ Add</button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto pr-1">
                         {scopesList.map(scope => {
-                            const isChecked = checkedScopesMap[scope] === undefined ? false : checkedScopesMap[scope];
+                            const isChecked = !!checkedScopesMap[scope];
                             return (
-                                <button key={scope} type="button" onClick={() => { setCheckedScopesMap(p => ({ ...p, [scope]: !isChecked })); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-2 ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                                    <span className="text-xs font-black">{isChecked ? '✓' : ''}</span>
-                                    <span>{scope}</span>
+                                <div key={scope} className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                                    <span onClick={() => setCheckedScopesMap(p => ({ ...p, [scope]: !isChecked }))} className="flex items-center gap-1.5">
+                                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                        <span>{scope}</span>
+                                    </span>
                                     {!DEFAULT_SCOPES.includes(scope) && (
-                                        <span onClick={(e) => { e.stopPropagation(); handleDeleteScope(scope); }} className="text-rose-500 hover:text-rose-700 ml-1 font-bold">✕</span>
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteScope(scope); }} className="text-slate-400 hover:text-rose-500 ml-1">✕</button>
                                     )}
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
-
-                    <div className="flex gap-2.5 mt-auto pt-2">
-                        <input type="text" value={newScopeInput} onChange={e => setNewScopeInput(e.target.value)} placeholder="Add custom scope..." className="flex-1 h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-                        <button type="button" onClick={handleAddScope} className="px-5 h-10 bg-slate-800 hover:bg-slate-900 text-white border border-slate-800 rounded-xl text-xs font-bold transition-all">+ Add</button>
-                    </div>
                 </section>
+
             </main>
 
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 border border-slate-200 backdrop-blur-xl px-4 py-2 rounded-full shadow-lg flex items-center gap-3 z-50">
-                <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-full shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 min-w-[155px]"
-                >
-                    {isGenerating ? (
-                        <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    ) : (
-                        <span>✨ Generate Report</span>
-                    )}
-                </button>
-                <button disabled={!outputReport || isGenerating} onClick={executeCopy} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-bold text-xs rounded-full border border-slate-300 transition-all flex items-center gap-1.5">
-                    <span>📋 Copy Report</span>
-                </button>
-                <button disabled={!outputReport || isGenerating} onClick={() => setIsPreviewOpen(true)} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-bold text-xs rounded-full border border-slate-300 transition-all flex items-center gap-1.5">
-                    <span>👁 Preview Report</span>
-                </button>
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg z-40">
+                <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <button type="button" onClick={handleGenerate} disabled={isGenerating} className="px-6 h-12 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2">
+                            {isGenerating ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span>Generating Report...</span>
+                                </>
+                            ) : (
+                                <span>Generate Report</span>
+                            )}
+                        </button>
+
+                        {outputReport && (
+                            <>
+                                <button type="button" onClick={executeCopy} className="px-5 h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                                    <span>Copy Report</span>
+                                </button>
+                                <button type="button" onClick={() => setIsPreviewOpen(true)} className="px-5 h-12 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl border border-slate-300 transition-all flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    <span>Preview Report</span>
+                                </button>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="text-xs text-slate-500 font-medium">
+                        {outputReport ? "Report ready for use" : "Fill required fields and click Generate"}
+                    </div>
+                </div>
             </div>
 
             {isPreviewOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white border border-slate-200 w-full max-w-4xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 className="font-extrabold text-sm text-slate-900">Generated Report Preview</h3>
-                            <button onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold text-lg px-2">✕</button>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                            <h3 className="text-base font-bold text-slate-900">Generated Report Preview</h3>
+                            <button type="button" onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-all">✕</button>
                         </div>
-                        <div className="p-6 overflow-y-auto flex-1 bg-slate-900 font-mono text-xs text-slate-200 whitespace-pre-wrap leading-relaxed select-all">
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-900 text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed select-text">
                             {outputReport}
                         </div>
-                        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
-                            <button onClick={() => setIsPreviewOpen(false)} className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all">Close</button>
-                            <button onClick={executeCopy} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm">Copy Report</button>
+                        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+                            <button type="button" onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all">Close</button>
+                            <button type="button" onClick={() => { executeCopy(); setIsPreviewOpen(false); }} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                                <span>Copy to Clipboard</span>
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {toasts.length > 0 && (
-                <div className="fixed top-6 right-6 flex flex-col gap-2 z-50">
-                    {toasts.map(toast => (
-                        <div key={toast.id} className={`px-4 py-3 rounded-2xl text-xs font-bold shadow-lg border flex items-center gap-2.5 transition-all animate-in slide-in-from-top-2 duration-200 ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
-                            {toast.type === 'loading' && <svg className="animate-spin w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+            <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm">
+                {toasts.map(toast => (
+                    <div key={toast.id} className={`p-4 rounded-xl shadow-lg border text-xs font-bold flex items-center justify-between gap-3 transition-all ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-900' : (toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900')}`}>
+                        <div className="flex items-center gap-2">
+                            {toast.type === 'loading' && <svg className="animate-spin h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
                             <span>{toast.message}</span>
                         </div>
-                    ))}
-                </div>
-            )}
+                        {toast.type !== 'loading' && (
+                            <button type="button" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-slate-400 hover:text-slate-600">✕</button>
+                        )}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
