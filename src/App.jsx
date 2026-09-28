@@ -5,10 +5,10 @@ const GOOGLE_CLIENT_ID = "149310433677-4qv9hp52p00s4csq1eb1trj23nsiu945.apps.goo
 const ATLASSIAN_CLIENT_ID = "OULWq49W7enCX1cVWMFtRTlj2axvx0Ge";
 
 const DEFAULT_SCOPES = [
-    "Logic", "Logic UI", "UI", "Interruption", "Sound",
-    "Tutorial/Trial", "Data", " promotion", "Common Behaviour",
+    "Logic", "Logic UI", "Specific UI", "Interruption", "Sound",
+    "Tutorial/Trial", "Data", " Promotion", "Common Behaviour",
     "Compatibility", "UAT", "Regression Test", "Check Feedback",
-    "Crosscheck", "BetfailBan&Maintainance"
+    "Crosscheck", "Betfail", "Ban & Maintainance"
 ];
 
 const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
@@ -23,6 +23,8 @@ export default function App() {
     const [sheetTabName, setSheetTabName] = useState('');
     const [dateReport, setDateReport] = useState('');
     const [qcNames, setQcNames] = useState('');
+    const [testingStatus, setTestingStatus] = useState('In-testing');
+    const [zeroTicketStatus, setZeroTicketStatus] = useState('Passed');
 
     const [versionGame, setVersionGame] = useState('');
     const [dateGame, setDateGame] = useState('');
@@ -114,14 +116,14 @@ export default function App() {
         let currentToken = localStorage.getItem('jira_access_token');
         let res = await fetch(url, {
             ...options,
-            headers: { ...options.headers, 'Authorization': 'Bearer ' + currentToken }
+            headers: { ...options.headers, 'Authorization': `Bearer ${currentToken}` }
         });
         if (res.status === 401) {
             try {
                 currentToken = await refreshJiraToken();
                 res = await fetch(url, {
                     ...options,
-                    headers: { ...options.headers, 'Authorization': 'Bearer ' + currentToken }
+                    headers: { ...options.headers, 'Authorization': `Bearer ${currentToken}` }
                 });
             } catch (err) {
                 handleJiraDisconnect();
@@ -144,6 +146,8 @@ export default function App() {
                 if (state.versionApp) setVersionApp(state.versionApp);
                 if (state.dateApp) setDateApp(state.dateApp);
                 if (state.qcNames) setQcNames(state.qcNames);
+                if (state.testingStatus !== undefined) setTestingStatus(state.testingStatus);
+                if (state.zeroTicketStatus !== undefined) setZeroTicketStatus(state.zeroTicketStatus);
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
                 if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
@@ -204,7 +208,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+            qcNames, testingStatus, zeroTicketStatus, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -212,7 +216,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+        qcNames, testingStatus, zeroTicketStatus, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
@@ -274,7 +278,7 @@ export default function App() {
         const folderId = folderIdMatch[1];
         try {
             const driveApiUrl = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name`;
-            const res = await fetch(driveApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+            const res = await fetch(driveApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) return null;
             const data = await res.json();
             const folderName = data.name || '';
@@ -563,10 +567,10 @@ export default function App() {
                 if (!spreadsheetIdMatch) throw new Error("Invalid spreadsheet URL.");
                 const spreadsheetId = spreadsheetIdMatch[1];
                 const sheetApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'${encodeURIComponent(actualSheetTabName)}'`;
-                let sheetRes = await fetch(sheetApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+                let sheetRes = await fetch(sheetApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (sheetRes.status === 401) {
                     token = await getGoogleTokenAsync(true);
-                    sheetRes = await fetch(sheetApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+                    sheetRes = await fetch(sheetApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 }
                 if (!sheetRes.ok) {
                     if (sheetRes.status === 403) throw new Error("Permission denied. Check sharing settings.");
@@ -576,7 +580,7 @@ export default function App() {
                 const sheetData = await sheetRes.json();
                 const rows = sheetData.values || [];
                 const a1ApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?ranges='${encodeURIComponent(actualSheetTabName)}'!A1&fields=sheets.data.rowData.values(hyperlink,formattedValue,textFormatRuns,chipRuns)`;
-                const a1Res = await fetch(a1ApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
+                const a1Res = await fetch(a1ApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (a1Res.ok) {
                     const a1Data = await a1Res.json();
                     try {
@@ -969,16 +973,23 @@ export default function App() {
                         typeContainers[issueTypeName][tag][pName].push({ key: issue.key, summary: summary.replace(/\[.*?\]/g, '').trim() });
                     }
                 });
-                let buildStatusParts = [];
-                if (bugCount > 0) {
-                    PRIORITY_ORDER.forEach(pr => { if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); });
-                    for (const pr in bugPriorityMap) { if (!PRIORITY_ORDER.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); }
+                
+                let buildStatusStr = "";
+                if (buildStatusCount > 0) {
+                    let buildStatusParts = [];
+                    if (bugCount > 0) {
+                        PRIORITY_ORDER.forEach(pr => { if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); });
+                        for (const pr in bugPriorityMap) { if (!PRIORITY_ORDER.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); }
+                    }
+                    if (impCount > 0) buildStatusParts.push(`Improvement: ${impCount}`);
+                    if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
+                    buildStatusStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
+                } else {
+                    buildStatusStr = zeroTicketStatus || "Passed";
                 }
-                if (impCount > 0) buildStatusParts.push(`Improvement: ${impCount}`);
-                if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
-                let buildStatusStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
+
                 let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
-                let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: In-testing\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
+                let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
                 finalReport = summarySection + finalReport;
                 const romanize = (num) => {
                     const lookup = { M: 1000, CM: 900, d: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1 };
@@ -1081,7 +1092,6 @@ export default function App() {
             let envParts = ["Iframe"];
             if (chkWebapp) envParts.push("Webapp");
             if (chkApptek) envParts.push("App");
-            if (chkPreprod) envParts.push("Preprod");
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
             
             let linksCollected = [];
@@ -1117,7 +1127,9 @@ export default function App() {
             customHeader += "Jira: " + autoJiraLink + "\n";
             customHeader += "Testcase: " + (autoTestcaseLink || "No link found in cell A1") + "\n";
             
-            let notesSegment = "C. [NOTES]\n";
+            let hasJiraSection = jiraReportSegment.trim().length > 0;
+            let notesSegment = hasJiraSection ? "C. [NOTES]\n" : "B. [NOTES]\n";
+            
             if (customNotesData.some(n => n.trim() !== "")) {
                 customNotesData.forEach(block => {
                     if (block.trim()) {
@@ -1144,8 +1156,11 @@ export default function App() {
                 notesSegment += `- There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending ${pendingCount === 1 ? 'ticket' : 'tickets'} in the ${arr.length > 1 ? arr.join(' and ') : arr[0]} ${arr.length === 1 ? 'column' : 'columns'}\n`;
             }
             notesSegment += `- QC: ${qcNamesInput || 'Victor, Anna, Khanh, Hien, ChinSu, Thea, Atomic'}\n\`\`\`\nQC sends the report today!`;
+            
             let finalOutputString = customHeader + finalReport + "——————————————————\n";
-            if (jiraReportSegment.trim().length > 0) finalOutputString += jiraReportSegment.replace(/(?:——————————————————\n)$/, "") + "——————————————————\n";
+            if (hasJiraSection) {
+                finalOutputString += jiraReportSegment.replace(/(?:——————————————————\n)$/, "") + "——————————————————\n";
+            }
             finalOutputString += notesSegment;
 
             setOutputReport(finalOutputString.trim().replace(/\.00%/g, '%'));
@@ -1252,6 +1267,17 @@ export default function App() {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-600">Testing Status</label>
+                            <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing, Done..." className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-600">Zero Bug Verdict</label>
+                            <input type="text" value={zeroTicketStatus} onChange={e => setZeroTicketStatus(e.target.value)} placeholder="Passed, Failed..." className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                        </div>
+                    </div>
+
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-600">QC Team</label>
                         <div className="relative">
@@ -1280,7 +1306,7 @@ export default function App() {
                             <div className="p-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white">
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count tickets</span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count</span>
                                         <div className="flex gap-1 text-[9px]">
                                             <button type="button" onClick={() => toggleAllJiraCategory('B', true)} className="text-indigo-600 hover:underline font-bold">All</button>
                                             <span className="text-slate-300">|</span>
