@@ -1186,26 +1186,26 @@ export default function App() {
         <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 pb-36">
             <header className="max-w-6xl mx-auto mb-8 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shadow-lg">
-                        <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shadow-sm">
+                        <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
                     <div>
-                        <h1 className="text-lg font-extrabold text-white tracking-tight">QC Report Tool</h1>
-                        <p className="text-xs text-slate-400 font-medium">Internal Report Generator</p>
+                        <h1 className="text-lg font-extrabold text-slate-900 tracking-tight">QC Report Tool</h1>
+                        <p className="text-xs text-slate-500 font-medium">Internal Report Generator</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-slate-800/80 border border-slate-700/60 px-4 py-2 rounded-2xl backdrop-blur-md shadow-sm">
-                    <span className={`w-2.5 h-2.5 rounded-full ${jiraToken && jiraCloudId ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-500'}`}></span>
-                    <span className="text-xs font-semibold text-slate-200">
+                <div className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2 rounded-2xl backdrop-blur-md shadow-sm">
+                    <span className={`w-2.5 h-2.5 rounded-full ${jiraToken && jiraCloudId ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-400'}`}></span>
+                    <span className="text-xs font-semibold text-slate-700">
                         {jiraToken && jiraCloudId ? "Jira Connected" : "Jira Disconnected"}
                     </span>
                     {jiraToken && jiraCloudId ? (
-                        <button onClick={handleJiraDisconnect} className="text-xs px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold rounded-xl border border-slate-600 transition-all">
+                        <button onClick={handleJiraDisconnect} className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-300 transition-all">
                             Disconnect
                         </button>
                     ) : (
-                        <button onClick={initiateJiraSSO} className="text-xs px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-md transition-all">
+                        <button onClick={initiateJiraSSO} className="text-xs px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all">
                             Connect SSO
                         </button>
                     )}
@@ -1215,13 +1215,13 @@ export default function App() {
             <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md flex flex-col gap-4">
-                    <h2 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    <h2 className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
                         <span>Project Details</span>
                     </h2>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-300">Project Key(s)</label>
+                        <label className="text-xs font-semibold text-slate-700">Project Key(s)</label>
                         <div className="flex gap-2">
                             <input
                                 ref={projectKeyRef}
@@ -1232,9 +1232,9 @@ export default function App() {
                                     setFormErrors(prev => prev.filter(err => err !== "Project Key"));
                                 }}
                                 placeholder="e.g. 9707, WS019775"
-                                className={`flex-1 h-10 px-3.5 bg-slate-900/60 border rounded-xl text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:bg-slate-900 transition-colors ${formErrors.includes("Project Key") ? 'border-rose-500' : 'border-slate-700 focus:border-indigo-500'}`}
+                                className={`flex-1 h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 transition-colors ${formErrors.includes("Project Key") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
                             />
-                            <button type="button" onClick={handleLoadStatuses} className="px-3.5 h-10 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1">
+                            <button type="button" onClick={handleLoadStatuses} className="px-3.5 h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1">
                                 <span>↻ Sync</span>
                             </button>
                         </div>
@@ -1242,15 +1242,15 @@ export default function App() {
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Sprint Filter</label>
-                            <select value={selectedSprint} onChange={e => setSelectedSprint(e.target.value)} className="h-10 px-3 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500">
+                            <label className="text-xs font-semibold text-slate-700">Sprint Filter</label>
+                            <select value={selectedSprint} onChange={e => setSelectedSprint(e.target.value)} className="h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white">
                                 <option value="All">Default</option>
                                 {jiraSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Epic Filter</label>
-                            <select value={selectedParent} onChange={e => setSelectedParent(e.target.value)} className="h-10 px-3 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500">
+                            <label className="text-xs font-semibold text-slate-700">Epic Filter</label>
+                            <select value={selectedParent} onChange={e => setSelectedParent(e.target.value)} className="h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white">
                                 <option value="All">Default</option>
                                 {jiraParents.map(p => <option key={p.key} value={p.key}>{p.name} ({p.key})</option>)}
                             </select>
@@ -1259,7 +1259,7 @@ export default function App() {
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Sheet Tab Name</label>
+                            <label className="text-xs font-semibold text-slate-700">Sheet Tab Name</label>
                             <input
                                 ref={sheetTabNameRef}
                                 type="text"
@@ -1269,29 +1269,29 @@ export default function App() {
                                     setFormErrors(prev => prev.filter(err => err !== "Sheet Name"));
                                 }}
                                 placeholder="Sheet Name"
-                                className={`h-10 px-3.5 bg-slate-900/60 border rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none transition-colors ${formErrors.includes("Sheet Name") ? 'border-rose-500' : 'border-slate-700 focus:border-indigo-500'}`}
+                                className={`h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("Sheet Name") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
                             />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Report Date</label>
-                            <input type="date" value={dateReport} onChange={e => setDateReport(e.target.value)} className="w-full h-10 px-3 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500" />
+                            <label className="text-xs font-semibold text-slate-700">Report Date</label>
+                            <input type="date" value={dateReport} onChange={e => setDateReport(e.target.value)} className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white" />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Testing Status</label>
-                            <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing..." className="h-10 px-3.5 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500" />
+                            <label className="text-xs font-semibold text-slate-700">Testing Status</label>
+                            <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white" />
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Build Status</label>
-                            <input type="text" value={buildStatus} onChange={e => setbuildStatus(e.target.value)} placeholder="Passed..." className="h-10 px-3.5 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500" />
+                            <label className="text-xs font-semibold text-slate-700">Build Status</label>
+                            <input type="text" value={buildStatus} onChange={e => setbuildStatus(e.target.value)} placeholder="Passed..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white" />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-300">QC Team</label>
+                        <label className="text-xs font-semibold text-slate-700">QC Team</label>
                         <div className="relative">
                             <input
                                 ref={qcTeamRef}
@@ -1302,35 +1302,35 @@ export default function App() {
                                     setFormErrors(prev => prev.filter(err => err !== "QC Team"));
                                 }}
                                 placeholder="Victor, Anna..."
-                                className={`w-full h-10 pl-9 pr-3.5 bg-slate-900/60 border rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none transition-colors ${formErrors.includes("QC Team") ? 'border-rose-500' : 'border-slate-700 focus:border-indigo-500'}`}
+                                className={`w-full h-10 pl-9 pr-3.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("QC Team") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
                             />
-                            <svg className={`w-4 h-4 absolute left-3 top-3 ${formErrors.includes("QC Team") ? 'text-rose-500' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                            <svg className={`w-4 h-4 absolute left-3 top-3 ${formErrors.includes("QC Team") ? 'text-rose-500' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                         </div>
                     </div>
 
-                    <div className="bg-slate-900/40 border border-slate-700/60 rounded-xl overflow-hidden mt-1">
-                        <button type="button" onClick={() => setIsAccordionOpen(!isAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-300 hover:bg-slate-800/50 transition-all">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
+                        <button type="button" onClick={() => setIsAccordionOpen(!isAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
                             <span>Jira Status Settings</span>
-                            <span className="text-slate-500">{isAccordionOpen ? '▲' : '▼'}</span>
+                            <span className="text-slate-400">{isAccordionOpen ? '▲' : '▼'}</span>
                         </button>
 
                         {isAccordionOpen && (
-                            <div className="p-3 border-t border-slate-700/60 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-900/80">
+                            <div className="p-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white">
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Count</span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count</span>
                                         <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraCategory('B', true)} className="text-indigo-400 hover:underline font-bold">All</button>
-                                            <span className="text-slate-600">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraCategory('B', false)} className="text-slate-500 hover:underline">None</button>
+                                            <button type="button" onClick={() => toggleAllJiraCategory('B', true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllJiraCategory('B', false)} className="text-slate-400 hover:underline">None</button>
                                         </div>
                                     </div>
                                     {statusPillList.map(s => {
                                         const isChecked = !!checkedJiraB[s];
                                         return (
-                                            <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-950/60 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/40 border-slate-700/50 text-slate-400'}`}>
+                                            <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
                                                 <span className="text-[10px] font-semibold truncate">{s}</span>
-                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-600'}`}>{isChecked ? '✓' : ''}</span>
+                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
                                             </div>
                                         );
                                     })}
@@ -1338,19 +1338,19 @@ export default function App() {
 
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Unverified</span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Unverified</span>
                                         <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Unverified', true)} className="text-amber-400 hover:underline font-bold">All</button>
-                                            <span className="text-slate-600">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Unverified', false)} className="text-slate-500 hover:underline">None</button>
+                                            <button type="button" onClick={() => toggleAllJiraCategory('Unverified', true)} className="text-amber-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllJiraCategory('Unverified', false)} className="text-slate-400 hover:underline">None</button>
                                         </div>
                                     </div>
                                     {statusPillList.map(s => {
                                         const isChecked = !!checkedJiraUnverified[s];
                                         return (
-                                            <div key={s} onClick={() => setCheckedJiraUnverified(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-amber-950/60 border-amber-500/50 text-amber-200' : 'bg-slate-800/40 border-slate-700/50 text-slate-400'}`}>
+                                            <div key={s} onClick={() => setCheckedJiraUnverified(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
                                                 <span className="text-[10px] font-semibold truncate">{s}</span>
-                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-amber-500 text-white border-amber-500' : 'bg-slate-900 border-slate-600'}`}>{isChecked ? '✓' : ''}</span>
+                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
                                             </div>
                                         );
                                     })}
@@ -1358,19 +1358,19 @@ export default function App() {
 
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Pending</span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Pending</span>
                                         <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Pending', true)} className="text-indigo-400 hover:underline font-bold">All</button>
-                                            <span className="text-slate-600">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Pending', false)} className="text-slate-500 hover:underline">None</button>
+                                            <button type="button" onClick={() => toggleAllJiraCategory('Pending', true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllJiraCategory('Pending', false)} className="text-slate-400 hover:underline">None</button>
                                         </div>
                                     </div>
                                     {statusPillList.map(s => {
                                         const isChecked = !!checkedJiraPending[s];
                                         return (
-                                            <div key={s} onClick={() => setCheckedJiraPending(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-950/60 border-indigo-500/50 text-indigo-200' : 'bg-slate-800/40 border-slate-700/50 text-slate-400'}`}>
+                                            <div key={s} onClick={() => setCheckedJiraPending(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
                                                 <span className="text-[10px] font-semibold truncate">{s}</span>
-                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-600'}`}>{isChecked ? '✓' : ''}</span>
+                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
                                             </div>
                                         );
                                     })}
@@ -1381,14 +1381,14 @@ export default function App() {
                 </section>
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md flex flex-col gap-4">
-                    <h2 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    <h2 className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
                         <span>Environments & Links</span>
                     </h2>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Game Version</label>
+                            <label className="text-xs font-semibold text-slate-700">Game Version</label>
                             <input
                                 ref={gameVersionRef}
                                 type="text"
@@ -1398,17 +1398,17 @@ export default function App() {
                                     setFormErrors(prev => prev.filter(err => err !== "Game Version"));
                                 }}
                                 placeholder="1.0.0"
-                                className={`h-10 px-3.5 bg-slate-900/60 border rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none transition-colors ${formErrors.includes("Game Version") ? 'border-rose-500' : 'border-slate-700 focus:border-indigo-500'}`}
+                                className={`h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("Game Version") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
                             />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Version Date</label>
-                            <input type="date" value={dateGame} onChange={e => setDateGame(e.target.value)} className="h-10 px-3 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500" />
+                            <label className="text-xs font-semibold text-slate-700">Version Date</label>
+                            <input type="date" value={dateGame} onChange={e => setDateGame(e.target.value)} className="h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white" />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">App Version</label>
+                            <label className="text-xs font-semibold text-slate-700">App Version</label>
                             <input
                                 ref={appVersionRef}
                                 type="text"
@@ -1418,58 +1418,58 @@ export default function App() {
                                     setFormErrors(prev => prev.filter(err => err !== "App Version"));
                                 }}
                                 placeholder="3.41.790"
-                                className={`h-10 px-3.5 bg-slate-900/60 border rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none transition-colors ${formErrors.includes("App Version") ? 'border-rose-500' : 'border-slate-700 focus:border-indigo-500'}`}
+                                className={`h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("App Version") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
                             />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-300">Platforms</label>
+                        <label className="text-xs font-semibold text-slate-700">Platforms</label>
                         <div className="flex flex-wrap gap-2 pt-1">
-                            <button type="button" onClick={() => setChkWebapp(!chkWebapp)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkWebapp ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600'}`}>Webapp</button>
-                            <button type="button" onClick={() => setChkApptek(!chkApptek)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkApptek ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600'}`}>App</button>
-                            <button type="button" onClick={() => setChkPreprod(!chkPreprod)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkPreprod ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600'}`}>Preprod</button>
+                            <button type="button" onClick={() => setChkWebapp(!chkWebapp)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkWebapp ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>Webapp</button>
+                            <button type="button" onClick={() => setChkApptek(!chkApptek)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkApptek ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>App</button>
+                            <button type="button" onClick={() => setChkPreprod(!chkPreprod)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkPreprod ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>Preprod</button>
                         </div>
                     </div>
 
                     {(chkWebapp || chkApptek) && (
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Webapp/App Link or ID</label>
-                            <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                            <label className="text-xs font-semibold text-slate-700">Webapp/App Link or ID</label>
+                            <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white" />
                         </div>
                     )}
 
                     {chkPreprod && (
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-300">Preprod Link</label>
-                            <input type="text" value={linkPreprod} onChange={e => setLinkPreprod(e.target.value)} placeholder="https://..." className="w-full h-10 px-3.5 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                            <label className="text-xs font-semibold text-slate-700">Preprod Link</label>
+                            <input type="text" value={linkPreprod} onChange={e => setLinkPreprod(e.target.value)} placeholder="https://..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white" />
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-700/60 mt-1">
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-1">
                         <div className="flex justify-between items-center">
-                            <label className="text-xs font-semibold text-slate-300">Custom Iframes</label>
-                            <button type="button" onClick={handleAddIframe} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">+ Add Link</button>
+                            <label className="text-xs font-semibold text-slate-700">Custom Iframes</label>
+                            <button type="button" onClick={handleAddIframe} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Link</button>
                         </div>
                         {customIframesData.map((iframeUrl, idx) => (
                             <div key={idx} className="flex gap-2 items-center">
-                                <input type="text" value={iframeUrl} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="Custom iframe link..." className="flex-1 h-9 px-3 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
-                                <button type="button" onClick={() => handleIframeDelete(idx)} className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-xl transition-all">
+                                <input type="text" value={iframeUrl} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="Custom iframe link..." className="flex-1 h-9 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white" />
+                                <button type="button" onClick={() => handleIframeDelete(idx)} className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                             </div>
                         ))}
                     </div>
 
-                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-700/60 mt-1">
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-1">
                         <div className="flex justify-between items-center">
-                            <label className="text-xs font-semibold text-slate-300">Custom Notes</label>
-                            <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">+ Add Note</button>
+                            <label className="text-xs font-semibold text-slate-700">Custom Notes</label>
+                            <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Note</button>
                         </div>
                         {customNotesData.map((noteText, idx) => (
                             <div key={idx} className="flex gap-2 items-start">
-                                <textarea value={noteText} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Custom notes..." rows="2" className="flex-1 p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-y" />
-                                <button type="button" onClick={() => handleNoteDelete(idx)} className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-xl transition-all mt-1">
+                                <textarea value={noteText} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Custom notes..." rows="2" className="flex-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white resize-y" />
+                                <button type="button" onClick={() => handleNoteDelete(idx)} className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all mt-1">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                             </div>
@@ -1479,34 +1479,43 @@ export default function App() {
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md flex flex-col gap-4">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                        <h2 className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
                             <span>Scope of Testing</span>
                         </h2>
                         <div className="flex gap-2 text-xs">
-                            <button type="button" onClick={() => toggleAllScopes(true)} className="text-indigo-400 hover:underline font-bold">Select All</button>
-                            <span className="text-slate-600">|</span>
-                            <button type="button" onClick={() => toggleAllScopes(false)} className="text-slate-500 hover:underline">Deselect All</button>
+                            <button type="button" onClick={() => toggleAllScopes(true)} className="text-indigo-600 hover:underline font-bold">Select All</button>
+                            <span className="text-slate-300">|</span>
+                            <button type="button" onClick={() => toggleAllScopes(false)} className="text-slate-500 hover:underline">Select None</button>
                         </div>
                     </div>
 
                     <div className="flex gap-2">
-                        <input type="text" value={newScopeInput} onChange={e => setNewScopeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddScope()} placeholder="Add custom scope..." className="flex-1 h-9 px-3 bg-slate-900/60 border border-slate-700 rounded-xl text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
-                        <button type="button" onClick={handleAddScope} className="px-3 h-9 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl border border-slate-600 transition-all">+ Add</button>
+                        <input
+                            type="text"
+                            value={newScopeInput}
+                            onChange={e => setNewScopeInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddScope(); } }}
+                            placeholder="Add custom scope..."
+                            className="flex-1 h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                        />
+                        <button type="button" onClick={handleAddScope} className="px-3.5 h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all">
+                            + Add
+                        </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 max-h-[420px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 gap-2 max-h-[380px] overflow-y-auto pr-1">
                         {scopesList.map(scope => {
                             const isChecked = !!checkedScopesMap[scope];
                             return (
-                                <div key={scope} className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${isChecked ? 'bg-indigo-950/60 border-indigo-500/60 text-indigo-200 shadow-sm' : 'bg-slate-900/40 border-slate-700/50 text-slate-400 hover:border-slate-600'}`}>
-                                    <span onClick={() => setCheckedScopesMap(p => ({ ...p, [scope]: !isChecked }))} className="flex items-center gap-1.5">
-                                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-900 border-slate-600'}`}>{isChecked ? '✓' : ''}</span>
-                                        <span>{scope}</span>
-                                    </span>
-                                    {!DEFAULT_SCOPES.includes(scope) && (
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteScope(scope); }} className="text-slate-500 hover:text-rose-400 ml-1">✕</button>
-                                    )}
+                                <div key={scope} className={`px-3 py-2 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                    <div className="flex items-center gap-2.5 flex-1 min-w-0" onClick={() => setCheckedScopesMap(p => ({ ...p, [scope]: !isChecked }))}>
+                                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                        <span className="text-xs font-semibold truncate">{scope}</span>
+                                    </div>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteScope(scope); }} className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition-colors">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
                                 </div>
                             );
                         })}
@@ -1515,86 +1524,61 @@ export default function App() {
 
             </main>
 
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-4">
-                <div className="bg-white/90 backdrop-blur-md border border-slate-200 text-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 pl-3">
-                        <span className={`w-2.5 h-2.5 rounded-full ${outputReport ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-400'}`}></span>
+            <footer className="fixed bottom-0 left-0 right-0 bg-white/90 border-t border-slate-200 p-4 backdrop-blur-md z-40 shadow-lg">
+                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                        {outputReport ? (
+                            <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Report Compiled
+                            </span>
+                        ) : (
+                            <span>Fill parameters and generate your QC report</span>
+                        )}
                     </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={handleGenerate}
-                            disabled={isGenerating}
-                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
-                        >
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        {outputReport && (
+                            <button type="button" onClick={() => setIsPreviewOpen(true)} className="flex-1 sm:flex-initial px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 transition-all">
+                                View Report
+                            </button>
+                        )}
+                        <button type="button" onClick={handleGenerate} disabled={isGenerating} className="flex-1 sm:flex-initial px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
                             {isGenerating ? (
                                 <>
-                                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
+                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                     <span>Generating...</span>
                                 </>
                             ) : (
-                                <span>Generate</span>
+                                <span>Generate Report</span>
                             )}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setIsPreviewOpen(true)}
-                            disabled={!outputReport}
-                            className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all disabled:opacity-40"
-                        >
-                            Preview
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={executeCopy}
-                            disabled={!outputReport}
-                            className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all disabled:opacity-40 flex items-center gap-1.5"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                            </svg>
-                            <span>Copy</span>
                         </button>
                     </div>
                 </div>
-            </div>
+            </footer>
 
             {isPreviewOpen && (
-                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden text-slate-800">
-                        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                            <h3 className="text-sm font-bold text-slate-200">Generated Report Preview</h3>
-                            <button type="button" onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg transition-all">✕</button>
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+                        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                            <h3 className="text-sm font-bold text-slate-800">Generated QC Report</h3>
+                            <button type="button" onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
                         </div>
-                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50 text-slate-900 font-mono text-xs whitespace-pre-wrap leading-relaxed select-text">
-                            {outputReport}
+                        <div className="p-4 flex-1 overflow-y-auto">
+                            <textarea value={outputReport} onChange={e => setOutputReport(e.target.value)} rows="16" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-indigo-600 resize-y" />
                         </div>
-                        <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/50">
-                            <button type="button" onClick={() => { executeCopy(); setIsPreviewOpen(false); }} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5">
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                                <span>Copy to Clipboard</span>
-                            </button>
+                        <div className="p-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
+                            <button type="button" onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-xl transition-all">Close</button>
+                            <button type="button" onClick={executeCopy} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all">Copy to Clipboard</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm">
-                {toasts.map(toast => (
-                    <div key={toast.id} className={`p-4 rounded-xl shadow-2xl border text-xs font-bold flex items-center justify-between gap-3 transition-all ${toast.type === 'error' ? 'bg-rose-950/90 border-rose-800/80 text-rose-200' : (toast.type === 'loading' ? 'bg-indigo-950/90 border-indigo-800/80 text-indigo-200' : 'bg-emerald-950/90 border-emerald-800/80 text-emerald-200')}`}>
-                        <div className="flex items-center gap-2">
-                            {toast.type === 'loading' && <svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                            <span>{toast.message}</span>
-                        </div>
-                        {toast.type !== 'loading' && (
-                            <button type="button" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-slate-400 hover:text-slate-200">✕</button>
-                        )}
+            <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+                {toasts.map(t => (
+                    <div key={t.id} className={`pointer-events-auto px-4 py-3 rounded-xl border shadow-xl text-xs font-bold flex items-center gap-2 transition-all ${t.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-700' : (t.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700')}`}>
+                        {t.type === 'loading' && <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                        <span>{t.message}</span>
                     </div>
                 ))}
             </div>
