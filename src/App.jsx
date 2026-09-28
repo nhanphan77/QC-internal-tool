@@ -169,7 +169,7 @@ export default function App() {
             } catch (e) { }
         } else {
             const initMap = {};
-            DEFAULT_SCOPES.forEach(s => { initMap[s] = true; });
+            DEFAULT_SCOPES.forEach(s => { initMap[s] = false; });
             setCheckedScopesMap(initMap);
         }
 
@@ -513,7 +513,7 @@ export default function App() {
         const versionAppInput = versionApp.trim();
         const sheetTabNameInput = sheetTabName.trim();
         const isAppRequired = chkWebapp || chkApptek;
-        const selectedScopes = scopesList.filter(scope => checkedScopesMap[scope] === undefined ? true : checkedScopesMap[scope]);
+        const selectedScopes = scopesList.filter(scope => checkedScopesMap[scope] === undefined ? false : checkedScopesMap[scope]);
         const sharedInputValue = linkShared.trim();
         const preprodInputValue = linkPreprod.trim();
 
@@ -1273,7 +1273,7 @@ export default function App() {
                             <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing, Done..." className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-slate-600">Zero Bug Verdict</label>
+                            <label className="text-xs font-bold text-slate-600">Build Status</label>
                             <input type="text" value={zeroTicketStatus} onChange={e => setZeroTicketStatus(e.target.value)} placeholder="Passed, Failed..." className="h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
                     </div>
@@ -1480,7 +1480,7 @@ export default function App() {
 
                     <div className={`flex flex-wrap gap-2.5 min-h-[220px] content-start p-1.5 rounded-xl border transition-colors ${formErrors.includes("Scope of Testing (at least 1)") ? 'border-rose-500 bg-rose-50/30' : 'border-transparent'}`}>
                         {scopesList.map(scope => {
-                            const isChecked = checkedScopesMap[scope] === undefined ? true : checkedScopesMap[scope];
+                            const isChecked = checkedScopesMap[scope] === undefined ? false : checkedScopesMap[scope];
                             return (
                                 <button key={scope} type="button" onClick={() => { setCheckedScopesMap(p => ({ ...p, [scope]: !isChecked })); setFormErrors(prev => prev.filter(err => err !== "Scope of Testing (at least 1)")); }} className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-2 ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}`}>
                                     <span className="text-xs font-black">{isChecked ? '✓' : ''}</span>
