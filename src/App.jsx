@@ -31,9 +31,11 @@ export default function App() {
 
     const [chkWebapp, setChkWebapp] = useState(false);
     const [chkApptek, setChkApptek] = useState(false);
-    const [chkCustomNote, setChkCustomNote] = useState(false);
+    const [chkPreprod, setChkPreprod] = useState(false);
     const [linkShared, setLinkShared] = useState('');
-
+    const [linkPreprod, setLinkPreprod] = useState('');
+    
+    const [chkCustomNote, setChkCustomNote] = useState(false);
     const [customNotesData, setCustomNotesData] = useState([]);
     const [customIframesData, setCustomIframesData] = useState([]);
 
@@ -147,7 +149,9 @@ export default function App() {
                 if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
+                if (state.chkPreprod !== undefined) setChkPreprod(state.chkPreprod);
                 if (state.linkShared) setLinkShared(state.linkShared);
+                if (state.linkPreprod) setLinkPreprod(state.linkPreprod);
                 if (Array.isArray(state.scopesList)) setScopesList(state.scopesList);
                 if (state.checkedScopes) setCheckedScopesMap(state.checkedScopes);
                 if (Array.isArray(state.jiraStatusesList)) setJiraStatuses(state.jiraStatusesList);
@@ -200,7 +204,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, linkShared,
+            qcNames, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -208,7 +212,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, linkShared,
+        qcNames, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
@@ -230,7 +234,7 @@ export default function App() {
     const initiateJiraSSO = () => {
         const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
         const scope = encodeURIComponent("read:jira-work read:jira-user read:board-scope:jira-software read:project:jira offline_access");
-        const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
+        const authUrl = `[https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=$](https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=$){ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
         window.location.href = authUrl;
     };
 
@@ -243,7 +247,7 @@ export default function App() {
             }
             const client = window.google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
-                scope: 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly',
+                scope: '[https://www.googleapis.com/auth/spreadsheets.readonly](https://www.googleapis.com/auth/spreadsheets.readonly) [https://www.googleapis.com/auth/drive.metadata.readonly](https://www.googleapis.com/auth/drive.metadata.readonly)',
                 callback: (response) => {
                     if (response.error) {
                         if (response.error === 'interaction_required') {
@@ -269,7 +273,7 @@ export default function App() {
         if (!folderIdMatch) return null;
         const folderId = folderIdMatch[1];
         try {
-            const driveApiUrl = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name`;
+            const driveApiUrl = `[https://www.googleapis.com/drive/v3/files/$](https://www.googleapis.com/drive/v3/files/$){folderId}?fields=name`;
             const res = await fetch(driveApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
             if (!res.ok) return null;
             const data = await res.json();
@@ -299,7 +303,7 @@ export default function App() {
 
             for (const key of keys) {
                 try {
-                    const targetUrl = `https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${key}/statuses`;
+                    const targetUrl = `[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/2/project/${key}/statuses`;
                     const res = await fetchWithJiraAuth(targetUrl, { headers: { 'Accept': 'application/json' } });
                     if (res.ok) {
                         const data = await res.json();
@@ -312,13 +316,13 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
+                    const bRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
                     if (bRes.ok) {
                         const bData = await bRes.json();
                         if (bData && bData.values && bData.values.length > 0) {
                             const boardId = bData.values[0].id;
                             try {
-                                const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+                                const sRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
                                 if (sRes.ok) {
                                     const sData = await sRes.json();
                                     sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
@@ -329,7 +333,7 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                    const eRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/3/search/jql`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({ jql: `project = "${key}" AND issuetype = Epic`, maxResults: 100, fields: ["summary"] })
@@ -348,7 +352,7 @@ export default function App() {
                 setCheckedJiraB(prev => {
                     const next = { ...prev };
                     list.forEach(s => {
-                        if (next[s] === undefined) { // Chỉ gán mặc định nếu status này mới xuất hiện
+                        if (next[s] === undefined) {
                             const cleanS = s.replace(/[^A-Z0-9]/g, '');
                             next[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED'].includes(cleanS);
                         }
@@ -507,6 +511,7 @@ export default function App() {
         const isAppRequired = chkWebapp || chkApptek;
         const selectedScopes = scopesList.filter(scope => checkedScopesMap[scope] === undefined ? true : checkedScopesMap[scope]);
         const sharedInputValue = linkShared.trim();
+        const preprodInputValue = linkPreprod.trim();
 
         let errors = [];
         if (projectKeysInput.length === 0) errors.push("Project Key");
@@ -533,7 +538,7 @@ export default function App() {
         try {
             let finalGameId = projectKeysInput[0];
             const actualSheetTabName = sheetTabNameInput;
-            const urlInput = "https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494";
+            const urlInput = "[https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494](https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494)";
 
             setOutputReport('');
             showToast('Authenticating with Google...', 'loading');
@@ -557,7 +562,7 @@ export default function App() {
                 const spreadsheetIdMatch = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
                 if (!spreadsheetIdMatch) throw new Error("Invalid spreadsheet URL.");
                 const spreadsheetId = spreadsheetIdMatch[1];
-                const sheetApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'${encodeURIComponent(actualSheetTabName)}'`;
+                const sheetApiUrl = `[https://sheets.googleapis.com/v4/spreadsheets/$](https://sheets.googleapis.com/v4/spreadsheets/$){spreadsheetId}/values/'${encodeURIComponent(actualSheetTabName)}'`;
                 let sheetRes = await fetch(sheetApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
                 if (sheetRes.status === 401) {
                     token = await getGoogleTokenAsync(true);
@@ -570,7 +575,7 @@ export default function App() {
                 }
                 const sheetData = await sheetRes.json();
                 const rows = sheetData.values || [];
-                const a1ApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?ranges='${encodeURIComponent(actualSheetTabName)}'!A1&fields=sheets.data.rowData.values(hyperlink,formattedValue,textFormatRuns,chipRuns)`;
+                const a1ApiUrl = `[https://sheets.googleapis.com/v4/spreadsheets/$](https://sheets.googleapis.com/v4/spreadsheets/$){spreadsheetId}?ranges='${encodeURIComponent(actualSheetTabName)}'!A1&fields=sheets.data.rowData.values(hyperlink,formattedValue,textFormatRuns,chipRuns)`;
                 const a1Res = await fetch(a1ApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
                 if (a1Res.ok) {
                     const a1Data = await a1Res.json();
@@ -638,12 +643,18 @@ export default function App() {
                         if (colA && colB && colG) {
                             const cleanTag = colA.toUpperCase();
                             if (!sheetTagOrder.includes(cleanTag)) sheetTagOrder.push(cleanTag);
-                            const statusKey = colG.toUpperCase();
+                            
+                            let statusKey = colG.toUpperCase();
+                            if (statusKey === 'REMAINING') statusKey = 'REMAINS';
+
                             if (colE && !colE.includes('%') && !isNaN(colE)) colE = ((parseFloat(colE) * 100).toFixed(2) + '%').replace('.00%', '%');
                             else if (!colE) colE = '0%';
                             else colE = colE.replace('.00%', '%');
+                            
                             let displayRemaining = colE;
                             if (statusKey === 'IN PROGRESS' && colH.toLowerCase().includes('failed')) displayRemaining = 'Failed';
+                            if (statusKey === 'DONE' && colH.toLowerCase().includes('warning')) displayRemaining = 'Passed with warning';
+                            
                             if (!groups[statusKey]) groups[statusKey] = [];
                             groups[statusKey].push({ name: colA, remaining: displayRemaining, originalIndex: totalItems });
                             totalItems++;
@@ -651,11 +662,14 @@ export default function App() {
                     }
 
                     let allItems = [];
-                    const orderList = ['DONE', 'IN PROGRESS', 'REMAINING'];
+                    const orderList = ['DONE', 'IN PROGRESS', 'REMAINS'];
                     orderList.forEach(statusKey => {
                         const groupItems = groups[statusKey] || [];
                         groupItems.forEach(item => {
-                            allItems.push({ ...item, statusKey: statusKey, displayValue: statusKey === 'DONE' ? 'Passed' : item.remaining });
+                            let disp = item.remaining;
+                            if (statusKey === 'DONE' && disp !== 'Passed with warning') disp = '';
+                            if (statusKey === 'REMAINS') disp = '';
+                            allItems.push({ ...item, statusKey: statusKey, displayValue: disp });
                         });
                     });
 
@@ -823,14 +837,19 @@ export default function App() {
                             subGroupItems = subGroupItems.concat(stage1Items);
                         });
                         subGroupItems.forEach(item => {
-                            let lineText = item.isMergedString ? `  + ${item.name}: ${item.mergedVal}\n` : `  + ${item.name}: ${item.statusKey === 'DONE' ? 'Passed' : item.remaining}\n`;
+                            let textVal = item.isMergedString ? item.mergedVal : item.displayValue;
+                            let lineText = textVal ? `  + ${item.name}: ${textVal}\n` : `  + ${item.name}\n`;
                             globalMergedLines.push({ text: lineText, index: item.originalIndex || 9999, statusKey: item.statusKey });
                         });
                     }
-                    ['DONE', 'IN PROGRESS', 'REMAINING'].forEach(statusKey => {
+                    ['DONE', 'IN PROGRESS', 'REMAINS'].forEach(statusKey => {
                         let groupPercent = statusKey === 'DONE' ? doneHeaderPercent : (statusKey === 'IN PROGRESS' ? inProgressHeaderPercent : remainingHeaderPercent);
                         if (groupPercent !== '0.00%' && groupPercent !== '0%' && groupPercent !== '0.0%' && parseFloat(groupPercent) !== 0) {
-                            finalReport += `- ${statusKey}: ${groupPercent}\n`;
+                            if (statusKey === 'REMAINS') {
+                                finalReport += `- REMAINS:\n`;
+                            } else {
+                                finalReport += `- ${statusKey}: ${groupPercent}\n`;
+                            }
                             let linesForSection = globalMergedLines.filter(l => l.statusKey === statusKey).sort((a, b) => a.index - b.index);
                             linesForSection.forEach(l => { finalReport += l.text; });
                         }
@@ -857,7 +876,7 @@ export default function App() {
                 let boardId = '';
 
                 try {
-                    const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
+                    const pRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
                     if (pRes.ok) {
                         const pData = await pRes.json();
                         if (pData && pData.name && projectKeysInput.length === 1) targetName = pData.name;
@@ -866,7 +885,7 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Accept': 'application/json' } });
+                    const bRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Accept': 'application/json' } });
                     if (bRes.ok) {
                         const bData = await bRes.json();
                         if (bData && bData.values && bData.values.length > 0) {
@@ -887,7 +906,7 @@ export default function App() {
                     const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
                     if (currentToken) payload.nextPageToken = currentToken;
 
-                    const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                    const res = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/3/search/jql`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify(payload)
@@ -908,9 +927,9 @@ export default function App() {
                 detectedBoardName = targetName;
 
                 if (boardId) {
-                    autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}`;
+                    autoJiraLink = `[https://enotion.atlassian.net/jira/software/projects/$](https://enotion.atlassian.net/jira/software/projects/$){realKey}/boards/${boardId}`;
                 } else {
-                    autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards`;
+                    autoJiraLink = `[https://enotion.atlassian.net/jira/software/projects/$](https://enotion.atlassian.net/jira/software/projects/$){realKey}/boards`;
                 }
 
                 const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
@@ -947,7 +966,7 @@ export default function App() {
                         const tag = bracketMatch ? bracketMatch[1].trim().toUpperCase() : 'OTHERS';
                         if (!typeContainers[issueTypeName][tag]) typeContainers[issueTypeName][tag] = {};
                         if (!typeContainers[issueTypeName][tag][pName]) typeContainers[issueTypeName][tag][pName] = [];
-                        typeContainers[issueTypeName][tag][pName].push({ key: issue.key, summary: summary.replace(/\[[^\]]+\]/, '').trim() });
+                        typeContainers[issueTypeName][tag][pName].push({ key: issue.key, summary: summary.replace(/\[.*?\]/g, '').trim() });
                     }
                 });
                 let buildStatusParts = [];
@@ -980,13 +999,18 @@ export default function App() {
                             });
                             tags.forEach(tag => {
                                 jiraBody += `${romanize(sectionIndex)}. [${tag}]\n`;
-                                let totalInTag = Object.values(typeContainers['BUG'][tag]).reduce((acc, arr) => acc + arr.length, 0);
+                                
+                                let totalInTag = 0;
+                                for (const pr in typeContainers['BUG'][tag]) {
+                                    totalInTag += typeContainers['BUG'][tag][pr].length;
+                                }
+
                                 const printPriority = (priority) => {
                                     if (typeContainers['BUG'][tag][priority]) {
                                         const tickets = typeContainers['BUG'][tag][priority];
                                         jiraBody += `- ${priority}: ${tickets.length}\n`;
-                                        if (totalInTag === 1 && (priority === 'High' || priority === 'Highest')) {
-                                            tickets.forEach(t => { jiraBody += `  + Ticket ${t.key.split('-').pop()}: ${t.summary}\n`; });
+                                        if (totalInTag < 5 || priority === 'High' || priority === 'Highest') {
+                                            tickets.forEach(t => { jiraBody += `    + ${t.key} - ${t.summary}\n`; });
                                         }
                                     }
                                 };
@@ -1000,6 +1024,7 @@ export default function App() {
                         let hasTickets = false;
                         const priorityMapForType = {};
                         let totalInType = 0;
+                        
                         for (const tag in typeContainers[typeKey]) {
                             for (const priority in typeContainers[typeKey][tag]) {
                                 const tix = typeContainers[typeKey][tag][priority];
@@ -1017,7 +1042,9 @@ export default function App() {
                                 if (priorityMapForType[priority]) {
                                     const tickets = priorityMapForType[priority];
                                     jiraBody += `- ${priority}: ${tickets.length}\n`;
-                                    if (totalInType === 1) { tickets.forEach(t => { jiraBody += `  + Ticket ${t.key.split('-').pop()}: ${t.summary}\n`; }); }
+                                    if (totalInType < 5 || priority === 'High' || priority === 'Highest') {
+                                        tickets.forEach(t => { jiraBody += `    + ${t.key} - ${t.summary}\n`; });
+                                    }
                                 }
                             };
                             PRIORITY_ORDER.forEach(printPriority);
@@ -1054,16 +1081,17 @@ export default function App() {
             let envParts = ["Iframe"];
             if (chkWebapp) envParts.push("Webapp");
             if (chkApptek) envParts.push("App");
+            if (chkPreprod) envParts.push("Preprod");
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
+            
             let linksCollected = [];
-
             const validIframes = customIframesData.filter(link => link.trim() !== "");
             if (validIframes.length === 1) {
                 linksCollected.push("- Iframe: " + validIframes[0].trim());
             } else if (validIframes.length > 1) {
                 linksCollected.push("- Iframe:\n  + " + validIframes.map(l => l.trim()).join("\n  + "));
             } else {
-                linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
+                linksCollected.push(`- Iframe: [https://iframe-tektale.staging.enostd.gay/en/kts$](https://iframe-tektale.staging.enostd.gay/en/kts$){finalGameId}/?token=xxx&c=USD&ru=[https://internal-portal.enostd.gay/](https://internal-portal.enostd.gay/)`);
             }
 
             if (chkWebapp) {
@@ -1079,15 +1107,32 @@ export default function App() {
                     linksCollected.push("- App: " + (appLinkVal || ""));
                 }
             }
+            if (chkPreprod) {
+                linksCollected.push("- Preprod: " + (preprodInputValue || ""));
+            }
 
-            linksCollected.push("- Jira: " + autoJiraLink);
-            linksCollected.push("- Testcase: " + (autoTestcaseLink || "No link found in cell A1"));
-            if (linksCollected.length > 0) customHeader += "Link:\n" + linksCollected.join('\n') + "\n";
+            if (linksCollected.length > 0) {
+                customHeader += "Link:\n" + linksCollected.join('\n') + "\n";
+            }
+            customHeader += "Jira: " + autoJiraLink + "\n";
+            customHeader += "Testcase: " + (autoTestcaseLink || "No link found in cell A1") + "\n";
+            
             let notesSegment = "C. [NOTES]\n";
             if (customNotesData.some(n => n.trim() !== "")) {
-                customNotesData.forEach(line => {
-                    let trimmed = line.trim();
-                    if (trimmed) notesSegment += (trimmed.startsWith('-') ? trimmed : `- ${trimmed}`) + "\n";
+                customNotesData.forEach(block => {
+                    if (block.trim()) {
+                        let lines = block.split('\n');
+                        lines.forEach(line => {
+                            let t = line.trim();
+                            if (t) {
+                                if (t.startsWith('-') || t.startsWith('+')) {
+                                    notesSegment += line.trimEnd() + "\n";
+                                } else {
+                                    notesSegment += `- ${t}\n`;
+                                }
+                            }
+                        });
+                    }
                 });
             }
             if (unverifiedCount > 0) {
@@ -1345,18 +1390,26 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700">Webapp/App</label>
+                        <label className="text-xs font-bold text-slate-700">Webapp/App/Preprod</label>
                         <span className="text-[11px] font-semibold text-slate-500">Env</span>
                         <div className="flex flex-wrap gap-2">
                             <button type="button" onClick={() => setChkWebapp(!chkWebapp)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${chkWebapp ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}>Webapp</button>
                             <button type="button" onClick={() => setChkApptek(!chkApptek)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${chkApptek ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}>App</button>
+                            <button type="button" onClick={() => setChkPreprod(!chkPreprod)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${chkPreprod ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}>Preprod</button>
                         </div>
                     </div>
 
                     {(chkWebapp || chkApptek) && (
                         <div className="flex flex-col gap-1.5 mt-1">
-                            <label className="text-xs font-bold text-slate-600">Wepapp ID/Link</label>
+                            <label className="text-xs font-bold text-slate-600">Webapp/App ID/Link</label>
                             <input type="text" value={linkShared} onChange={e => setLinkShared(e.target.value)} placeholder="Internal server number (e.g. 8) or URL..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
+                        </div>
+                    )}
+
+                    {chkPreprod && (
+                        <div className="flex flex-col gap-1.5 mt-1">
+                            <label className="text-xs font-bold text-slate-600">Preprod Link</label>
+                            <input type="text" value={linkPreprod} onChange={e => setLinkPreprod(e.target.value)} placeholder="https://..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
                     )}
 
@@ -1379,9 +1432,9 @@ export default function App() {
                             <button type="button" onClick={handleAddNote} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Note Line</button>
                         </div>
                         {customNotesData.map((note, idx) => (
-                            <div key={idx} className="flex gap-2">
-                                <input type="text" value={note} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Add note Line..." className="flex-1 h-9 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-                                <button type="button" onClick={() => handleNoteDelete(idx)} className="px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
+                            <div key={idx} className="flex gap-2 items-start">
+                                <textarea value={note} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Add note Line..." className="flex-1 min-h-[40px] px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white resize-y" rows={1} />
+                                <button type="button" onClick={() => handleNoteDelete(idx)} className="h-10 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-all">✕</button>
                             </div>
                         ))}
                     </div>
