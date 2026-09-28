@@ -1519,9 +1519,6 @@ export default function App() {
                 <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 pl-3">
                         <span className={`w-2.5 h-2.5 rounded-full ${outputReport ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-400'}`}></span>
-                        <span className="text-xs text-slate-300 font-medium hidden sm:inline">
-                            {outputReport ? "Report compiled & ready" : "Fill parameters and click Generate"}
-                        </span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1540,7 +1537,7 @@ export default function App() {
                                     <span>Generating...</span>
                                 </>
                             ) : (
-                                <span>Generate Report</span>
+                                <span>Generate</span>
                             )}
                         </button>
 
@@ -1579,7 +1576,6 @@ export default function App() {
                             {outputReport}
                         </div>
                         <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/50">
-                            <button type="button" onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-all">Close</button>
                             <button type="button" onClick={() => { executeCopy(); setIsPreviewOpen(false); }} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
                                 <span>Copy to Clipboard</span>
