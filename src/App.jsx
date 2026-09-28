@@ -13,6 +13,13 @@ const DEFAULT_SCOPES = [
 
 const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
 
+const formatColumnList = (cols) => {
+    if (!cols || cols.length === 0) return '';
+    if (cols.length === 1) return cols[0];
+    if (cols.length === 2) return `${cols[0]} and ${cols[1]}`;
+    return `${cols.slice(0, -1).join(', ')} and ${cols[cols.length - 1]}`;
+};
+
 export default function App() {
     const [jiraToken, setJiraToken] = useState(() => localStorage.getItem('jira_access_token') || null);
     const [jiraRefreshToken, setJiraRefreshToken] = useState(() => localStorage.getItem('jira_refresh_token') || null);
@@ -842,6 +849,9 @@ export default function App() {
                         });
                         subGroupItems.forEach(item => {
                             let textVal = item.isMergedString ? item.mergedVal : item.displayValue;
+                            if (item.statusKey === 'IN PROGRESS' && textVal && textVal.includes('%')) {
+                                textVal = textVal.replace('%', ' remain %');
+                            }
                             let lineText = textVal ? `  + ${item.name}: ${textVal}\n` : `  + ${item.name}\n`;
                             globalMergedLines.push({ text: lineText, index: item.originalIndex || 9999, statusKey: item.statusKey });
                         });
@@ -1125,7 +1135,7 @@ export default function App() {
                 customHeader += "Link:\n" + linksCollected.join('\n') + "\n";
             }
             customHeader += "Jira: " + autoJiraLink + "\n";
-            customHeader += "Testcase: " + (autoTestcaseLink || "No link found in cell A1") + "\n";
+            customHeader += "Test case: " + (autoTestcaseLink || "No link found in cell A1") + "\n";
             
             let hasJiraSection = jiraReportSegment.trim().length > 0;
             let notesSegment = hasJiraSection ? "C. [NOTES]\n" : "B. [NOTES]\n";
@@ -1149,11 +1159,13 @@ export default function App() {
             }
             if (unverifiedCount > 0) {
                 const arr = Array.from(unverifiedStatusesFound);
-                notesSegment += `- There ${unverifiedCount === 1 ? 'is' : 'are'} ${unverifiedCount} unverified ${unverifiedCount === 1 ? 'ticket' : 'tickets'} in the ${arr.length > 1 ? arr.join(' and ') : arr[0]} ${arr.length === 1 ? 'column' : 'columns'}\n`;
+                const colStr = formatColumnList(arr);
+                notesSegment += `- ${unverifiedCount} ${unverifiedCount === 1 ? 'bug remains' : 'bugs remain'} unverified in the ${colStr} ${arr.length === 1 ? 'column' : 'columns'}\n`;
             }
             if (pendingCount > 0) {
                 const arr = Array.from(pendingStatusesFound);
-                notesSegment += `- There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending ${pendingCount === 1 ? 'ticket' : 'tickets'} in the ${arr.length > 1 ? arr.join(' and ') : arr[0]} ${arr.length === 1 ? 'column' : 'columns'}\n`;
+                const colStr = formatColumnList(arr);
+                notesSegment += `- There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending ${pendingCount === 1 ? 'ticket' : 'tickets'} in the ${colStr} ${arr.length === 1 ? 'column' : 'columns'}\n`;
             }
             notesSegment += `- QC: ${qcNamesInput || 'Victor, Anna, Khanh, Hien, ChinSu, Thea, Atomic'}\n\`\`\`\nQC sends the report today!`;
             
@@ -1522,29 +1534,32 @@ export default function App() {
 
             {isPreviewOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white border border-slate-200 w-full max-w-4xl h-[80vh] rounded-2xl shadow-xl flex flex-col overflow-hidden">
-                        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                            <h2 className="text-sm font-bold text-slate-800 tracking-wide uppercase">Report Preview</h2>
-                            <button onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+                    <div className="bg-white border border-slate-200 w-full max-w-4xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <h3 className="font-extrabold text-sm text-slate-900">Generated Report Preview</h3>
+                            <button onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold text-lg px-2">✕</button>
                         </div>
-                        <div className="flex-1 p-6 bg-slate-50 min-h-0">
-                            <textarea value={outputReport} readOnly className="w-full h-full p-4 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed resize-none focus:outline-none font-mono" />
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-900 font-mono text-xs text-slate-200 whitespace-pre-wrap leading-relaxed select-all">
+                            {outputReport}
                         </div>
-                        <div className="px-6 py-3.5 border-t border-slate-200 flex justify-end gap-3 bg-white">
-                            <button onClick={executeCopy} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all">📋 Copy to Clipboard</button>
+                        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+                            <button onClick={() => setIsPreviewOpen(false)} className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all">Close</button>
+                            <button onClick={executeCopy} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm">Copy Report</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
-                {toasts.map(t => (
-                    <div key={t.id} className={`px-4 py-2.5 rounded-full text-xs font-extrabold shadow-lg border flex items-center gap-2 ${t.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-700' : t.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700'}`}>
-                        <span className="w-4 h-4 rounded-full bg-current text-white flex items-center justify-center text-[10px] font-black">✓</span>
-                        <span>{t.message}</span>
-                    </div>
-                ))}
-            </div>
+            {toasts.length > 0 && (
+                <div className="fixed top-6 right-6 flex flex-col gap-2 z-50">
+                    {toasts.map(toast => (
+                        <div key={toast.id} className={`px-4 py-3 rounded-2xl text-xs font-bold shadow-lg border flex items-center gap-2.5 transition-all animate-in slide-in-from-top-2 duration-200 ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
+                            {toast.type === 'loading' && <svg className="animate-spin w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                            <span>{toast.message}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
