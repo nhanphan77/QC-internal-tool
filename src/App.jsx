@@ -1183,7 +1183,7 @@ export default function App() {
     const statusPillList = jiraStatuses.length > 0 ? jiraStatuses : ['TODO', 'IN PROGRESS', 'FIXEDDONE'];
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-6 pb-36">
+        <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 pb-36">
             <header className="max-w-6xl mx-auto mb-8 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shadow-lg">
@@ -1214,7 +1214,7 @@ export default function App() {
 
             <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-                <section className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 shadow-xl backdrop-blur-sm flex flex-col gap-4">
+                <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                         <span>Project Details</span>
@@ -1380,7 +1380,7 @@ export default function App() {
                     </div>
                 </section>
 
-                <section className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 shadow-xl backdrop-blur-sm flex flex-col gap-4">
+                <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                         <span>Environments & Links</span>
@@ -1477,7 +1477,7 @@ export default function App() {
                     </div>
                 </section>
 
-                <section className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 shadow-xl backdrop-blur-sm flex flex-col gap-4">
+                <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md flex flex-col gap-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-sm font-bold text-slate-200 tracking-wide flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
@@ -1516,7 +1516,7 @@ export default function App() {
             </main>
 
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-4">
-                <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-4">
+                <div className="bg-white/90 backdrop-blur-md border border-slate-200 text-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 pl-3">
                         <span className={`w-2.5 h-2.5 rounded-full ${outputReport ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-400'}`}></span>
                     </div>
@@ -1567,12 +1567,12 @@ export default function App() {
 
             {isPreviewOpen && (
                 <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden text-slate-800">
                         <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
                             <h3 className="text-sm font-bold text-slate-200">Generated Report Preview</h3>
                             <button type="button" onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-200 p-1 rounded-lg transition-all">✕</button>
                         </div>
-                        <div className="p-6 overflow-y-auto flex-1 bg-slate-950 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed select-text">
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50 text-slate-900 font-mono text-xs whitespace-pre-wrap leading-relaxed select-text">
                             {outputReport}
                         </div>
                         <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/50">
