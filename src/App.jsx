@@ -234,7 +234,7 @@ export default function App() {
     const initiateJiraSSO = () => {
         const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
         const scope = encodeURIComponent("read:jira-work read:jira-user read:board-scope:jira-software read:project:jira offline_access");
-        const authUrl = `[https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=$](https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=$){ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
+        const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
         window.location.href = authUrl;
     };
 
@@ -247,7 +247,7 @@ export default function App() {
             }
             const client = window.google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
-                scope: '[https://www.googleapis.com/auth/spreadsheets.readonly](https://www.googleapis.com/auth/spreadsheets.readonly) [https://www.googleapis.com/auth/drive.metadata.readonly](https://www.googleapis.com/auth/drive.metadata.readonly)',
+                scope: 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly',
                 callback: (response) => {
                     if (response.error) {
                         if (response.error === 'interaction_required') {
@@ -273,7 +273,7 @@ export default function App() {
         if (!folderIdMatch) return null;
         const folderId = folderIdMatch[1];
         try {
-            const driveApiUrl = `[https://www.googleapis.com/drive/v3/files/$](https://www.googleapis.com/drive/v3/files/$){folderId}?fields=name`;
+            const driveApiUrl = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name`;
             const res = await fetch(driveApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
             if (!res.ok) return null;
             const data = await res.json();
@@ -303,7 +303,7 @@ export default function App() {
 
             for (const key of keys) {
                 try {
-                    const targetUrl = `[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/2/project/${key}/statuses`;
+                    const targetUrl = `https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${key}/statuses`;
                     const res = await fetchWithJiraAuth(targetUrl, { headers: { 'Accept': 'application/json' } });
                     if (res.ok) {
                         const data = await res.json();
@@ -316,13 +316,13 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const bRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
+                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
                     if (bRes.ok) {
                         const bData = await bRes.json();
                         if (bData && bData.values && bData.values.length > 0) {
                             const boardId = bData.values[0].id;
                             try {
-                                const sRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+                                const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
                                 if (sRes.ok) {
                                     const sData = await sRes.json();
                                     sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
@@ -333,7 +333,7 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const eRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/3/search/jql`, {
+                    const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({ jql: `project = "${key}" AND issuetype = Epic`, maxResults: 100, fields: ["summary"] })
@@ -538,7 +538,7 @@ export default function App() {
         try {
             let finalGameId = projectKeysInput[0];
             const actualSheetTabName = sheetTabNameInput;
-            const urlInput = "[https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494](https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494)";
+            const urlInput = "https://docs.google.com/spreadsheets/d/1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA/edit?gid=45247494#gid=45247494";
 
             setOutputReport('');
             showToast('Authenticating with Google...', 'loading');
@@ -562,7 +562,7 @@ export default function App() {
                 const spreadsheetIdMatch = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
                 if (!spreadsheetIdMatch) throw new Error("Invalid spreadsheet URL.");
                 const spreadsheetId = spreadsheetIdMatch[1];
-                const sheetApiUrl = `[https://sheets.googleapis.com/v4/spreadsheets/$](https://sheets.googleapis.com/v4/spreadsheets/$){spreadsheetId}/values/'${encodeURIComponent(actualSheetTabName)}'`;
+                const sheetApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'${encodeURIComponent(actualSheetTabName)}'`;
                 let sheetRes = await fetch(sheetApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
                 if (sheetRes.status === 401) {
                     token = await getGoogleTokenAsync(true);
@@ -575,7 +575,7 @@ export default function App() {
                 }
                 const sheetData = await sheetRes.json();
                 const rows = sheetData.values || [];
-                const a1ApiUrl = `[https://sheets.googleapis.com/v4/spreadsheets/$](https://sheets.googleapis.com/v4/spreadsheets/$){spreadsheetId}?ranges='${encodeURIComponent(actualSheetTabName)}'!A1&fields=sheets.data.rowData.values(hyperlink,formattedValue,textFormatRuns,chipRuns)`;
+                const a1ApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?ranges='${encodeURIComponent(actualSheetTabName)}'!A1&fields=sheets.data.rowData.values(hyperlink,formattedValue,textFormatRuns,chipRuns)`;
                 const a1Res = await fetch(a1ApiUrl, { headers: { 'Authorization': 'Bearer ' + token } });
                 if (a1Res.ok) {
                     const a1Data = await a1Res.json();
@@ -876,7 +876,7 @@ export default function App() {
                 let boardId = '';
 
                 try {
-                    const pRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
+                    const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
                     if (pRes.ok) {
                         const pData = await pRes.json();
                         if (pData && pData.name && projectKeysInput.length === 1) targetName = pData.name;
@@ -885,7 +885,7 @@ export default function App() {
                 } catch (e) { }
 
                 try {
-                    const bRes = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Accept': 'application/json' } });
+                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Accept': 'application/json' } });
                     if (bRes.ok) {
                         const bData = await bRes.json();
                         if (bData && bData.values && bData.values.length > 0) {
@@ -906,7 +906,7 @@ export default function App() {
                     const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
                     if (currentToken) payload.nextPageToken = currentToken;
 
-                    const res = await fetchWithJiraAuth(`[https://api.atlassian.com/ex/jira/$](https://api.atlassian.com/ex/jira/$){jiraCloudId}/rest/api/3/search/jql`, {
+                    const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify(payload)
@@ -927,9 +927,9 @@ export default function App() {
                 detectedBoardName = targetName;
 
                 if (boardId) {
-                    autoJiraLink = `[https://enotion.atlassian.net/jira/software/projects/$](https://enotion.atlassian.net/jira/software/projects/$){realKey}/boards/${boardId}`;
+                    autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}`;
                 } else {
-                    autoJiraLink = `[https://enotion.atlassian.net/jira/software/projects/$](https://enotion.atlassian.net/jira/software/projects/$){realKey}/boards`;
+                    autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards`;
                 }
 
                 const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
@@ -1091,7 +1091,7 @@ export default function App() {
             } else if (validIframes.length > 1) {
                 linksCollected.push("- Iframe:\n  + " + validIframes.map(l => l.trim()).join("\n  + "));
             } else {
-                linksCollected.push(`- Iframe: [https://iframe-tektale.staging.enostd.gay/en/kts$](https://iframe-tektale.staging.enostd.gay/en/kts$){finalGameId}/?token=xxx&c=USD&ru=[https://internal-portal.enostd.gay/](https://internal-portal.enostd.gay/)`);
+                linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
             }
 
             if (chkWebapp) {
