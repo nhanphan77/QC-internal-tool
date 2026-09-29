@@ -980,19 +980,16 @@ export default function App() {
                     }
                 });
                 
-                let buildStatusStr = "";
-                if (buildStatusCount > 0) {
-                    let buildStatusParts = [];
-                    if (bugCount > 0) {
-                        PRIORITY_ORDER.forEach(pr => { if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); });
-                        for (const pr in bugPriorityMap) { if (!PRIORITY_ORDER.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); }
-                    }
-                    if (impCount > 0) buildStatusParts.push(`Improvement: ${impCount}`);
-                    if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
-                    buildStatusStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
-                } else {
-                    buildStatusStr = buildStatus || "Passed";
+                let buildStatusParts = [];
+                if (bugCount > 0) {
+                    PRIORITY_ORDER.forEach(pr => { if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); });
+                    for (const pr in bugPriorityMap) { if (!PRIORITY_ORDER.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); }
                 }
+                if (impCount > 0) buildStatusParts.push(`Improvement: ${impCount}`);
+                if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
+                
+                let calculatedTicketStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
+                let buildStatusStr = buildStatus.trim() ? buildStatus.trim() : calculatedTicketStr;
 
                 let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
                 let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
@@ -1184,7 +1181,7 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 pb-36">
-            <header className="max-w-6xl mx-auto mb-8 flex justify-between items-center">
+            <header className="w-full mb-8 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shadow-sm">
                         <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -1212,7 +1209,7 @@ export default function App() {
                 </div>
             </header>
 
-            <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <main className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
                     <h2 className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-2">
