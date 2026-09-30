@@ -41,6 +41,7 @@ export default function App() {
     const [chkWebapp, setChkWebapp] = useState(false);
     const [chkApptek, setChkApptek] = useState(false);
     const [chkPreprod, setChkPreprod] = useState(false);
+    const [chkCustomIframe, setChkCustomIframe] = useState(false);
     const [linkShared, setLinkShared] = useState('');
     const [linkPreprod, setLinkPreprod] = useState('');
     
@@ -163,6 +164,7 @@ export default function App() {
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
                 if (state.chkPreprod !== undefined) setChkPreprod(state.chkPreprod);
+                if (state.chkCustomIframe !== undefined) setChkCustomIframe(state.chkCustomIframe);
                 if (state.linkShared) setLinkShared(state.linkShared);
                 if (state.linkPreprod) setLinkPreprod(state.linkPreprod);
                 if (Array.isArray(state.scopesList)) setScopesList(state.scopesList);
@@ -217,7 +219,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, testingStatus, buildStatus, chkCustomNote, customNotes: customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+            qcNames, testingStatus, buildStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint
@@ -225,7 +227,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, testingStatus, buildStatus, chkCustomNote, customNotesData, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+        qcNames, testingStatus, buildStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint
     ]);
@@ -1084,7 +1086,7 @@ export default function App() {
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
             
             let linksCollected = [];
-            const validIframes = customIframesData.split('\n').map(l => l.trim()).filter(l => l !== "");
+            const validIframes = chkCustomIframe ? customIframesData.split('\n').map(l => l.trim()).filter(l => l !== "") : [];
             if (validIframes.length > 0) {
                 let firstLineClean = validIframes[0].toLowerCase().replace(/^-\s*/, '');
                 if (firstLineClean.startsWith("iframe")) {
@@ -1443,6 +1445,7 @@ export default function App() {
                             <button type="button" onClick={() => setChkWebapp(!chkWebapp)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkWebapp ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>Webapp</button>
                             <button type="button" onClick={() => setChkApptek(!chkApptek)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkApptek ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>App</button>
                             <button type="button" onClick={() => setChkPreprod(!chkPreprod)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkPreprod ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>Preprod</button>
+                            <button type="button" onClick={() => setChkCustomIframe(!chkCustomIframe)} className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${chkCustomIframe ? 'bg-indigo-100 border-indigo-500 text-indigo-700' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-slate-400'}`}>Custom Iframe</button>
                         </div>
                     </div>
 
@@ -1459,23 +1462,27 @@ export default function App() {
                             <textarea 
                                 value={linkPreprod} 
                                 onChange={e => setLinkPreprod(e.target.value)} 
+                                ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
                                 placeholder="Preprod - Custom:&#10;KM: https://...&#10;EN: https://..." 
                                 rows="2" 
-                                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 resize-y" 
+                                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 overflow-hidden resize-none" 
                             />
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-200 mt-1">
-                        <label className="text-xs font-semibold text-slate-600">Custom Iframes</label>
-                        <textarea 
-                            value={customIframesData} 
-                            onChange={e => setCustomIframesData(e.target.value)} 
-                            placeholder="Iframe - Custom Staging:&#10;KM: https://...&#10;EN: https://..." 
-                            rows="2" 
-                            className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 resize-y" 
-                        />
-                    </div>
+                    {chkCustomIframe && (
+                        <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-200 mt-1">
+                            <label className="text-xs font-semibold text-slate-600">Custom Iframes</label>
+                            <textarea 
+                                value={customIframesData} 
+                                onChange={e => setCustomIframesData(e.target.value)} 
+                                ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                                placeholder="Iframe - Custom Staging:&#10;KM: https://...&#10;EN: https://..." 
+                                rows="2" 
+                                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 overflow-hidden resize-none" 
+                            />
+                        </div>
+                    )}
 
                     <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-1">
                         <div className="flex justify-between items-center">
@@ -1484,7 +1491,14 @@ export default function App() {
                         </div>
                         {customNotesData.map((noteText, idx) => (
                             <div key={idx} className="flex gap-2 items-start">
-                                <textarea value={noteText} onChange={e => handleNoteChange(idx, e.target.value)} placeholder="Custom notes..." rows="2" className="flex-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 resize-y" />
+                                <textarea 
+                                    value={noteText} 
+                                    onChange={e => handleNoteChange(idx, e.target.value)} 
+                                    ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                                    placeholder="Custom notes..." 
+                                    rows="2" 
+                                    className="flex-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 overflow-hidden resize-none" 
+                                />
                                 <button type="button" onClick={() => handleNoteDelete(idx)} className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all mt-1">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
