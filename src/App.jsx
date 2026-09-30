@@ -1099,16 +1099,27 @@ export default function App() {
             
             let linksCollected = [];
             const validIframes = customIframesData.filter(link => link.trim() !== "");
-            if (validIframes.length === 1) {
-                linksCollected.push("- Iframe: " + validIframes[0].trim());
-            } else if (validIframes.length > 1) {
-                linksCollected.push("- Iframe:\n  + " + validIframes.map(l => l.trim()).join("\n  + "));
+            if (validIframes.length > 0) {
+                let isNested = validIframes.length > 1 || validIframes[0].includes(":");
+                if (isNested) {
+                    linksCollected.push("- Iframe - Internal Staging:\n  - " + validIframes.map(l => l.trim()).join("\n  - "));
+                } else {
+                    linksCollected.push("- Iframe: " + validIframes[0].trim());
+                }
             } else {
                 linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
             }
 
             if (chkPreprod) {
-                linksCollected.push("- Preprod: " + (preprodInputValue || ""));
+                const preprodLines = preprodInputValue.split('\n').map(l => l.trim()).filter(l => l !== "");
+                if (preprodLines.length > 0) {
+                    let isNested = preprodLines.length > 1 || preprodLines[0].includes(":");
+                    if (isNested) {
+                        linksCollected.push("- Preprod - External Staging:\n  - " + preprodLines.join("\n  - "));
+                    } else {
+                        linksCollected.push("- Preprod: " + preprodLines[0]);
+                    }
+                }
             }
             if (chkWebapp) {
                 let webappVal = sharedInputValue;
@@ -1439,7 +1450,13 @@ export default function App() {
                     {chkPreprod && (
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold text-slate-600">Preprod Link</label>
-                            <input type="text" value={linkPreprod} onChange={e => setLinkPreprod(e.target.value)} placeholder="https://..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600" />
+                            <textarea 
+                                value={linkPreprod} 
+                                onChange={e => setLinkPreprod(e.target.value)} 
+                                placeholder="KM: https://...&#10;EN: https://..." 
+                                rows="2" 
+                                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 resize-y" 
+                            />
                         </div>
                     )}
 
