@@ -46,7 +46,7 @@ export default function App() {
     
     const [chkCustomNote, setChkCustomNote] = useState(false);
     const [customNotesData, setCustomNotesData] = useState([]);
-    const [customIframesData, setCustomIframesData] = useState([]);
+    const [customIframesData, setCustomIframesData] = useState('');
 
     const [scopesList, setScopesList] = useState([...DEFAULT_SCOPES]);
     const [checkedScopesMap, setCheckedScopesMap] = useState({});
@@ -157,7 +157,9 @@ export default function App() {
                 if (state.buildStatus !== undefined) setbuildStatus(state.buildStatus);
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
-                if (Array.isArray(state.customIframesData)) setCustomIframesData(state.customIframesData);
+                if (state.customIframesData !== undefined) {
+                    setCustomIframesData(Array.isArray(state.customIframesData) ? state.customIframesData.join('\n') : state.customIframesData);
+                }
                 if (state.chkWebapp) setChkWebapp(state.chkWebapp);
                 if (state.chkApptek) setChkApptek(state.chkApptek);
                 if (state.chkPreprod !== undefined) setChkPreprod(state.chkPreprod);
@@ -473,22 +475,6 @@ export default function App() {
 
     const handleNoteDelete = (index) => {
         setCustomNotesData(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleAddIframe = () => {
-        setCustomIframesData(prev => [...prev, '']);
-    };
-
-    const handleIframeChange = (index, val) => {
-        setCustomIframesData(prev => {
-            const next = [...prev];
-            next[index] = val;
-            return next;
-        });
-    };
-
-    const handleIframeDelete = (index) => {
-        setCustomIframesData(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleAddScope = () => {
@@ -1098,13 +1084,23 @@ export default function App() {
             customHeader += `Env: ${envParts.join('/')} - Internal Staging\n`;
             
             let linksCollected = [];
-            const validIframes = customIframesData.filter(link => link.trim() !== "");
+            const validIframes = customIframesData.split('\n').map(l => l.trim()).filter(l => l !== "");
             if (validIframes.length > 0) {
-                let isNested = validIframes.length > 1 || validIframes[0].includes(":");
-                if (isNested) {
-                    linksCollected.push("- Iframe - Internal Staging:\n  - " + validIframes.map(l => l.trim()).join("\n  - "));
+                let firstLineClean = validIframes[0].toLowerCase().replace(/^-\s*/, '');
+                if (firstLineClean.startsWith("iframe")) {
+                    let formattedBlock = validIframes.map((line, idx) => {
+                        if (idx === 0) return line.startsWith("-") ? line : "- " + line;
+                        if (line.startsWith("- ") || line.startsWith("+ ")) return "  " + line;
+                        return "  - " + line;
+                    }).join('\n');
+                    linksCollected.push(formattedBlock);
                 } else {
-                    linksCollected.push("- Iframe: " + validIframes[0].trim());
+                    let isNested = validIframes.length > 1 || validIframes[0].includes(":");
+                    if (isNested) {
+                        linksCollected.push("- Iframe:\n  - " + validIframes.join("\n  - "));
+                    } else {
+                        linksCollected.push("- Iframe: " + validIframes[0]);
+                    }
                 }
             } else {
                 linksCollected.push(`- Iframe: https://iframe-tektale.staging.enostd.gay/en/kts${finalGameId}/?token=xxx&c=USD&ru=https://internal-portal.enostd.gay/`);
@@ -1113,11 +1109,21 @@ export default function App() {
             if (chkPreprod) {
                 const preprodLines = preprodInputValue.split('\n').map(l => l.trim()).filter(l => l !== "");
                 if (preprodLines.length > 0) {
-                    let isNested = preprodLines.length > 1 || preprodLines[0].includes(":");
-                    if (isNested) {
-                        linksCollected.push("- Preprod - External Staging:\n  - " + preprodLines.join("\n  - "));
+                    let firstLineClean = preprodLines[0].toLowerCase().replace(/^-\s*/, '');
+                    if (firstLineClean.startsWith("preprod")) {
+                        let formattedBlock = preprodLines.map((line, idx) => {
+                            if (idx === 0) return line.startsWith("-") ? line : "- " + line;
+                            if (line.startsWith("- ") || line.startsWith("+ ")) return "  " + line;
+                            return "  - " + line;
+                        }).join('\n');
+                        linksCollected.push(formattedBlock);
                     } else {
-                        linksCollected.push("- Preprod: " + preprodLines[0]);
+                        let isNested = preprodLines.length > 1 || preprodLines[0].includes(":");
+                        if (isNested) {
+                            linksCollected.push("- Preprod:\n  - " + preprodLines.join("\n  - "));
+                        } else {
+                            linksCollected.push("- Preprod: " + preprodLines[0]);
+                        }
                     }
                 }
             }
@@ -1453,26 +1459,22 @@ export default function App() {
                             <textarea 
                                 value={linkPreprod} 
                                 onChange={e => setLinkPreprod(e.target.value)} 
-                                placeholder="KM: https://...&#10;EN: https://..." 
+                                placeholder="Preprod - Custom:&#10;KM: https://...&#10;EN: https://..." 
                                 rows="2" 
                                 className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 resize-y" 
                             />
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-1">
-                        <div className="flex justify-between items-center">
-                            <label className="text-xs font-semibold text-slate-600">Custom Iframes</label>
-                            <button type="button" onClick={handleAddIframe} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">+ Add Link</button>
-                        </div>
-                        {customIframesData.map((iframeUrl, idx) => (
-                            <div key={idx} className="flex gap-2 items-center">
-                                <input type="text" value={iframeUrl} onChange={e => handleIframeChange(idx, e.target.value)} placeholder="Custom iframe link..." className="flex-1 h-9 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600" />
-                                <button type="button" onClick={() => handleIframeDelete(idx)} className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            </div>
-                        ))}
+                    <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-200 mt-1">
+                        <label className="text-xs font-semibold text-slate-600">Custom Iframes</label>
+                        <textarea 
+                            value={customIframesData} 
+                            onChange={e => setCustomIframesData(e.target.value)} 
+                            placeholder="Iframe - Custom Staging:&#10;KM: https://...&#10;EN: https://..." 
+                            rows="2" 
+                            className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 resize-y" 
+                        />
                     </div>
 
                     <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 mt-1">
