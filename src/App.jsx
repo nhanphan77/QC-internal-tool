@@ -662,16 +662,22 @@ export default function App() {
                     autoTestcaseLink = (rows.length > 0 && rows[0].length > 0) ? rows[0][0].toString().trim() : '';
                 }
 
-                if (autoTestcaseLink && autoTestcaseLink.includes("drive.google.com")) {
-                    showToast('Extracting ID Game...', 'loading');
-                    const extractedId = await getGameIdFromDriveFolder(autoTestcaseLink, token);
-                    if (extractedId) finalGameId = extractedId;
+                if (autoTestcaseLink && (autoTestcaseLink.includes("drive.google.com") || autoTestcaseLink.includes("docs.google.com"))) {
+                    showToast('Verifying Testcase link...', 'loading');
+                    const driveCheck = await getGameIdFromDriveFolder(autoTestcaseLink, token);
+                    if (!driveCheck.accessible) {
+                        hideLoadingToast();
+                        alert(`❌ FAILED TO GENERATE:\n\nThe Drive link for the test case is inaccessible (404/403 error). \nPlease grant access (share the link) or check the link again:\n${autoTestcaseLink}`);
+                        return;
+                    }
+                    if (driveCheck.id) finalGameId = driveCheck.id;
                 }
 
                 let totalItems = 0;
                 let doneHeaderPercent = '0%';
                 let inProgressHeaderPercent = '0%';
                 let remainingHeaderPercent = '0%';
+                let sheetValidationErrors = [];
 
                 if (rows.length > 1) {
                     for (let i = 1; i < rows.length; i++) {
@@ -711,6 +717,13 @@ export default function App() {
                             if (colE && !colE.includes('%') && !isNaN(colE)) colE = ((parseFloat(colE) * 100).toFixed(2) + '%').replace('.00%', '%');
                             else if (!colE) colE = '0%';
                             else colE = colE.replace('.00%', '%');
+
+                            if (statusKey === 'REMAINS' && colE !== '100%') {
+                                sheetValidationErrors.push(`- [${colA}]: Đang ở mục REMAINS nhưng % Remaining = ${colE} (Yêu cầu phải là 100%)`);
+                            }
+                            if (statusKey === 'DONE' && colE !== '0%') {
+                                sheetValidationErrors.push(`- [${colA}]: Đang ở mục DONE nhưng % Remaining = ${colE} (Yêu cầu phải là 0%)`);
+                            }
                             
                             let displayRemaining = colE;
                             if (statusKey === 'IN PROGRESS' && colH.toLowerCase().includes('failed')) displayRemaining = 'Failed';
@@ -915,6 +928,13 @@ export default function App() {
                         }
                     });
                 }
+
+                if (sheetValidationErrors.length > 0) {
+                    hideLoadingToast();
+                    alert(`❌ FAILED TO GENERATE:\n\nThe progress data in the Google Sheet is invalid:\n\n${sheetValidationErrors.join('\n')}\n\nPlease go to the sheet and re-check the failed test cases listed above.`);
+                    return;
+                }
+
             } catch (error) {
                 hideLoadingToast();
                 showToast("Google Sheets Error: " + error.message, 'error');
@@ -973,8 +993,9 @@ export default function App() {
                     });
 
                     if (!res.ok) {
-                        if (res.status === 400) throw new Error(`Invalid Project Key or Filter.`);
-                        throw new Error(`JQL Fetch failed (Status: ${res.status})`);
+                        hideLoadingToast();
+                        alert(`❌ FAILED TO GENERATE:\n\nJira link inaccessible (Error code: ${res.status}).\nThe Project Key does not exist, the name was entered incorrectly, or you do not have access to this board.`);
+                        return;
                     }
 
                     const d = await res.json();
