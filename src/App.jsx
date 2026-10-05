@@ -1068,10 +1068,11 @@ export default function App() {
                                 return (iA === -1 ? 9999 : iA) - (iB === -1 ? 9999 : iB);
                             });
                             tags.forEach(tag => {
-                                jiraBody += `${romanize(sectionIndex)}. [${typeKey}]\n`;
+                                jiraBody += `${romanize(sectionIndex)}. [${tag}]\n`;
+
                                 const printPriority = (priority) => {
-                                    if (priorityMapForType[priority]) {
-                                        const tickets = priorityMapForType[priority];
+                                    if (typeContainers['BUG'][tag][priority]) {
+                                        const tickets = typeContainers['BUG'][tag][priority];
                                         jiraBody += `- ${priority}: ${tickets.length}\n`;
                                         
                                         if (buildStatusCount <= 5 || priority === 'High' || priority === 'Highest') {
@@ -1087,7 +1088,7 @@ export default function App() {
                         }
                     } else {
                         let hasTickets = false;
-                        const priorityMapForType = {};
+                        const priorityMapForType = {}; 
                         let totalInType = 0;
                         
                         for (const tag in typeContainers[typeKey]) {
@@ -1107,7 +1108,8 @@ export default function App() {
                                 if (priorityMapForType[priority]) {
                                     const tickets = priorityMapForType[priority];
                                     jiraBody += `- ${priority}: ${tickets.length}\n`;
-                                    if (totalInType < 5 || priority === 'High' || priority === 'Highest') {
+                                    
+                                    if (buildStatusCount <= 5 || priority === 'High' || priority === 'Highest') {
                                         tickets.forEach(t => { jiraBody += `    + ${t.key} - ${t.summary}\n`; });
                                     }
                                 }
