@@ -54,6 +54,9 @@ export default function App() {
     const [newScopeInput, setNewScopeInput] = useState('');
 
     const [jiraStatuses, setJiraStatuses] = useState([]);
+    const [jiraTagsList, setJiraTagsList] = useState([]);
+    const [checkedJiraTagsMap, setCheckedJiraTagsMap] = useState({});
+    const [isTagAccordionOpen, setIsTagAccordionOpen] = useState(true);
     const [checkedJiraB, setCheckedJiraB] = useState({});
     const [checkedJiraUnverified, setCheckedJiraUnverified] = useState({});
     const [checkedJiraPending, setCheckedJiraPending] = useState({});
@@ -170,6 +173,8 @@ export default function App() {
                 if (Array.isArray(state.scopesList)) setScopesList(state.scopesList);
                 if (state.checkedScopes) setCheckedScopesMap(state.checkedScopes);
                 if (Array.isArray(state.jiraStatusesList)) setJiraStatuses(state.jiraStatusesList);
+                if (Array.isArray(state.jiraTagsList)) setJiraTagsList(state.jiraTagsList);
+                if (state.checkedJiraTagsMap) setCheckedJiraTagsMap(state.checkedJiraTagsMap);
                 if (state.checkedJiraStatuses_B) setCheckedJiraB(state.checkedJiraStatuses_B);
                 if (state.checkedJiraStatuses_Unverified) setCheckedJiraUnverified(state.checkedJiraStatuses_Unverified);
                 if (state.checkedJiraStatuses_Pending) setCheckedJiraPending(state.checkedJiraStatuses_Pending);
@@ -222,14 +227,16 @@ export default function App() {
             qcNames, testingStatus, buildStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
-            jiraParents, jiraSprints, selectedParent, selectedSprint
+            jiraParents, jiraSprints, selectedParent, selectedSprint,
+            jiraTagsList, checkedJiraTagsMap
         };
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
         qcNames, testingStatus, buildStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
-        jiraParents, jiraSprints, selectedParent, selectedSprint
+        jiraParents, jiraSprints, selectedParent, selectedSprint,
+        jiraTagsList, checkedJiraTagsMap
     ]);
 
     useEffect(() => {
@@ -360,6 +367,55 @@ export default function App() {
                 } catch (e) { }
             }
 
+            try {
+                let tagSet = new Set();
+                let jHasMore = true;
+                let currentToken = null;
+                const keysStr = keys.map(k => `"${k}"`).join(',');
+                const tagJql = `project in (${keysStr}) AND issuetype in (Bug, Improvement, Question) ORDER BY created DESC`;
+                
+                while (jHasMore) {
+                    const payload = { jql: tagJql, maxResults: 100, fields: ["summary"] };
+                    if (currentToken) payload.nextPageToken = currentToken;
+                    
+                    const tRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (tRes.ok) {
+                        const d = await tRes.json();
+                        const items = d.issues || d.values || [];
+                        items.forEach(iss => {
+                            const summary = iss.fields?.summary || '';
+                            const match = summary.match(/\[([^\]]+)\]/);
+                            if (match) tagSet.add(match[1].trim().toUpperCase());
+                        });
+                        if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
+                        else jHasMore = false;
+                    } else {
+                        jHasMore = false;
+                    }
+                }
+
+                if (tagSet.size > 0) {
+                    let list = Array.from(tagSet).sort();
+                    if (!list.includes('OTHERS')) list = ['OTHERS', ...list]; 
+                    
+                    setJiraTagsList(list);
+                    setCheckedJiraTagsMap(prev => {
+                        const next = { ...prev };
+                        list.forEach(t => { 
+                            if (next[t] === undefined) next[t] = true; 
+                        });
+                        return next;
+                    });
+                }
+            } catch (e) {
+                console.error("Error while loading tabs:", e);
+            }
+
             if (statusSet.size > 0) {
                 const list = Array.from(statusSet);
                 setJiraStatuses(list);
@@ -423,6 +479,12 @@ export default function App() {
         if (category === 'B') setCheckedJiraB(newMap);
         else if (category === 'Unverified') setCheckedJiraUnverified(newMap);
         else if (category === 'Pending') setCheckedJiraPending(newMap);
+    };
+
+    const toggleAllJiraTags = (selectAll) => {
+        const newMap = {};
+        jiraTagsList.forEach(t => { newMap[t] = selectAll; });
+        setCheckedJiraTagsMap(newMap);
     };
 
     const toggleAllScopes = (selectAll) => {
@@ -950,6 +1012,14 @@ export default function App() {
                         if (['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE'].includes(statusClean)) isValidStatus = true;
                     }
                     if (isValidStatus) {
+                        const summary = issue.fields.summary || '';
+                        const bracketMatch = summary.match(/\[([^\]]+)\]/);
+                        const tag = bracketMatch ? bracketMatch[1].trim().toUpperCase() : 'OTHERS';
+
+                        if (jiraTagsList.length > 0 && !checkedJiraTagsMap[tag]) {
+                            return; 
+                        }
+
                         buildStatusCount++;
                         let pName = (issue.fields.priority && issue.fields.priority.name) ? issue.fields.priority.name.trim() : 'Unknown';
                         pName = pName.charAt(0).toUpperCase() + pName.slice(1).toLowerCase();
@@ -959,9 +1029,7 @@ export default function App() {
                             bugPriorityMap[pName]++;
                         } else if (issueTypeName === 'IMPROVEMENT') impCount++;
                         else if (issueTypeName === 'QUESTION') queCount++;
-                        const summary = issue.fields.summary || '';
-                        const bracketMatch = summary.match(/\[([^\]]+)\]/);
-                        const tag = bracketMatch ? bracketMatch[1].trim().toUpperCase() : 'OTHERS';
+                        
                         if (!typeContainers[issueTypeName][tag]) typeContainers[issueTypeName][tag] = {};
                         if (!typeContainers[issueTypeName][tag][pName]) typeContainers[issueTypeName][tag][pName] = [];
                         typeContainers[issueTypeName][tag][pName].push({ key: issue.key, summary: summary.replace(/\[.*?\]/g, '').trim() });
@@ -1341,7 +1409,7 @@ export default function App() {
                                             <button type="button" onClick={() => toggleAllJiraCategory('B', false)} className="text-slate-500 hover:underline">None</button>
                                         </div>
                                     </div>
-                                    {statusPillList.map(s => {
+                                    {statusPillList.map(s => { 
                                         const isChecked = !!checkedJiraB[s];
                                         return (
                                             <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
@@ -1394,6 +1462,38 @@ export default function App() {
                             </div>
                         )}
                     </div>
+                    {jiraTagsList.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-3">
+                            <button type="button" onClick={() => setIsTagAccordionOpen(!isTagAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
+                                <span>Lọc Jira Tickets theo [Type]</span>
+                                <span className="text-slate-400">{isTagAccordionOpen ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isTagAccordionOpen && (
+                                <div className="p-3 border-t border-slate-200 bg-slate-50">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Select Tags to Include</span>
+                                        <div className="flex gap-1 text-[9px]">
+                                            <button type="button" onClick={() => toggleAllJiraTags(true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllJiraTags(false)} className="text-slate-500 hover:underline">None</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                                        {jiraTagsList.map(tag => {
+                                            const isChecked = !!checkedJiraTagsMap[tag];
+                                            return (
+                                                <div key={tag} onClick={() => setCheckedJiraTagsMap(p => ({ ...p, [tag]: !isChecked }))} className={`px-2 py-1.5 rounded-lg border flex items-center gap-1.5 cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    <span className="text-[10px] font-semibold">{tag}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </section>
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
