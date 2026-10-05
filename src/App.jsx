@@ -1068,18 +1068,13 @@ export default function App() {
                                 return (iA === -1 ? 9999 : iA) - (iB === -1 ? 9999 : iB);
                             });
                             tags.forEach(tag => {
-                                jiraBody += `${romanize(sectionIndex)}. [${tag}]\n`;
-                                
-                                let totalInTag = 0;
-                                for (const pr in typeContainers['BUG'][tag]) {
-                                    totalInTag += typeContainers['BUG'][tag][pr].length;
-                                }
-
+                                jiraBody += `${romanize(sectionIndex)}. [${typeKey}]\n`;
                                 const printPriority = (priority) => {
-                                    if (typeContainers['BUG'][tag][priority]) {
-                                        const tickets = typeContainers['BUG'][tag][priority];
+                                    if (priorityMapForType[priority]) {
+                                        const tickets = priorityMapForType[priority];
                                         jiraBody += `- ${priority}: ${tickets.length}\n`;
-                                        if (totalInTag < 5 || priority === 'High' || priority === 'Highest') {
+                                        
+                                        if (buildStatusCount <= 5 || priority === 'High' || priority === 'Highest') {
                                             tickets.forEach(t => { jiraBody += `    + ${t.key} - ${t.summary}\n`; });
                                         }
                                     }
@@ -1462,38 +1457,6 @@ export default function App() {
                             </div>
                         )}
                     </div>
-                    {jiraTagsList.length > 0 && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-3">
-                            <button type="button" onClick={() => setIsTagAccordionOpen(!isTagAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
-                                <span>Lọc Jira Tickets theo [Type]</span>
-                                <span className="text-slate-400">{isTagAccordionOpen ? '▲' : '▼'}</span>
-                            </button>
-
-                            {isTagAccordionOpen && (
-                                <div className="p-3 border-t border-slate-200 bg-slate-50">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Select Tags to Include</span>
-                                        <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraTags(true)} className="text-indigo-600 hover:underline font-bold">All</button>
-                                            <span className="text-slate-300">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraTags(false)} className="text-slate-500 hover:underline">None</button>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
-                                        {jiraTagsList.map(tag => {
-                                            const isChecked = !!checkedJiraTagsMap[tag];
-                                            return (
-                                                <div key={tag} onClick={() => setCheckedJiraTagsMap(p => ({ ...p, [tag]: !isChecked }))} className={`px-2 py-1.5 rounded-lg border flex items-center gap-1.5 cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
-                                                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
-                                                    <span className="text-[10px] font-semibold">{tag}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </section>
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
@@ -1641,6 +1604,38 @@ export default function App() {
                             );
                         })}
                     </div>
+                    {jiraTagsList.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-3">
+                            <button type="button" onClick={() => setIsTagAccordionOpen(!isTagAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
+                                <span>Filter Tags [Type]</span>
+                                <span className="text-slate-400">{isTagAccordionOpen ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isTagAccordionOpen && (
+                                <div className="p-3 border-t border-slate-200 bg-slate-50">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Select Tags to Include</span>
+                                        <div className="flex gap-1 text-[9px]">
+                                            <button type="button" onClick={() => toggleAllJiraTags(true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllJiraTags(false)} className="text-slate-500 hover:underline">None</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                                        {jiraTagsList.map(tag => {
+                                            const isChecked = !!checkedJiraTagsMap[tag];
+                                            return (
+                                                <div key={tag} onClick={() => setCheckedJiraTagsMap(p => ({ ...p, [tag]: !isChecked }))} className={`px-2 py-1.5 rounded-lg border flex items-center gap-1.5 cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    <span className="text-[10px] font-semibold">{tag}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </section>
 
             </main>
