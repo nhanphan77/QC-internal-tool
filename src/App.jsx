@@ -290,20 +290,22 @@ export default function App() {
     };
 
     const getGameIdFromDriveFolder = async (folderUrl, token) => {
-        if (!folderUrl) return null;
-        const folderIdMatch = folderUrl.match(/folders\/([a-zA-Z0-9-_]+)/);
-        if (!folderIdMatch) return null;
+        if (!folderUrl) return { id: null, accessible: false };
+        const folderIdMatch = folderUrl.match(/(?:folders\/|d\/|id=)([a-zA-Z0-9-_]+)/);
+        if (!folderIdMatch) return { id: null, accessible: true };
         const folderId = folderIdMatch[1];
         try {
-            const driveApiUrl = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name`;
+            const driveApiUrl = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name&supportsAllDrives=true`;
             const res = await fetch(driveApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) return null;
+            
+            if (!res.ok) return { id: null, accessible: false, status: res.status };
+            
             const data = await res.json();
             const folderName = data.name || '';
             const gameIdMatch = folderName.match(/^\d{4}/);
-            return gameIdMatch ? gameIdMatch[0] : null;
+            return { id: gameIdMatch ? gameIdMatch[0] : null, accessible: true };
         } catch (e) {
-            return null;
+            return { id: null, accessible: false };
         }
     };
 
