@@ -721,10 +721,10 @@ export default function App() {
                             else colE = colE.replace('.00%', '%');
 
                             if (statusKey === 'REMAINS' && colE !== '100%') {
-                                sheetValidationErrors.push(`- [${colA}]: Đang ở mục REMAINS nhưng % Remaining = ${colE} (Yêu cầu phải là 100%)`);
+                                sheetValidationErrors.push(`- [${colA}]: Is in REMAINS but % Remaining = ${colE} (Must be 100%)`);
                             }
                             if (statusKey === 'DONE' && colE !== '0%') {
-                                sheetValidationErrors.push(`- [${colA}]: Đang ở mục DONE nhưng % Remaining = ${colE} (Yêu cầu phải là 0%)`);
+                                sheetValidationErrors.push(`- [${colA}]: Is in DONE but % Remaining = ${colE} (Must be 0%)`);
                             }
                             
                             let displayRemaining = colE;
