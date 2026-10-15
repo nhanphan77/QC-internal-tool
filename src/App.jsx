@@ -341,7 +341,7 @@ export default function App() {
                 if (bRes.ok) {
                     const bData = await bRes.json();
                     if (!bData || !bData.values || bData.values.length === 0) {
-                        throw new Error(`Không tìm thấy Board nào cho Project Key: ${key}`);
+                        throw new Error(`No board found for Project Key: ${key}`);
                     }
                     const boardId = bData.values[0].id;
                     try {
@@ -352,7 +352,7 @@ export default function App() {
                         }
                     } catch (e) { }
                 } else {
-                    throw new Error(`Project Key không tồn tại hoặc bạn không có quyền truy cập: ${key}`);
+                    throw new Error(`Project Key does not exist or access denied: ${key}`);
                 }
 
                 try {
@@ -590,6 +590,11 @@ export default function App() {
             else if (errors.includes("Game Version") && gameVersionRef.current) gameVersionRef.current.focus();
             else if (errors.includes("App Version") && appVersionRef.current) appVersionRef.current.focus();
             else if (errors.includes("Sheet Tab Name") && sheetTabNameRef.current) sheetTabNameRef.current.focus();
+            return;
+        }
+
+	if (jiraStatuses.length === 0) {
+            showToast("Cannot generate report: Jira data is not synced. Please check your Project Key and sync first.", 'error');
             return;
         }
 
@@ -1719,19 +1724,23 @@ export default function App() {
                 </div>
             )}
 
-            <div className="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm">
-                {toasts.map(toast => (
-                    <div key={toast.id} className={`p-4 rounded-xl shadow-2xl border text-xs font-bold flex items-center justify-between gap-3 transition-all ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : (toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800')}`}>
-                        <div className="flex items-center gap-2">
-                            {toast.type === 'loading' && <svg className="animate-spin h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                            <span>{toast.message}</span>
-                        </div>
-                        {toast.type !== 'loading' && (
-                            <button type="button" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-slate-400 hover:text-slate-600">✕</button>
-                        )}
+            {toasts.length > 0 && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="flex flex-col gap-4 w-full max-w-lg">
+                        {toasts.map(toast => (
+                            <div key={toast.id} className={`p-5 rounded-2xl shadow-2xl border text-sm font-bold flex items-center justify-between gap-4 transition-all ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : (toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800')}`}>
+                                <div className="flex items-center gap-3">
+                                    {toast.type === 'loading' && <svg className="animate-spin h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                                    <span className="text-base leading-relaxed">{toast.message}</span>
+                                </div>
+                                {toast.type !== 'loading' && (
+                                    <button type="button" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all">✕</button>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
         </div>
     );
 }
