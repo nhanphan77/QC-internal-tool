@@ -337,22 +337,23 @@ export default function App() {
                     }
                 } catch (e) { }
 
-                try {
-                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
-                    if (bRes.ok) {
-                        const bData = await bRes.json();
-                        if (bData && bData.values && bData.values.length > 0) {
-                            const boardId = bData.values[0].id;
-                            try {
-                                const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
-                                if (sRes.ok) {
-                                    const sData = await sRes.json();
-                                    sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
-                                }
-                            } catch (e) { }
-                        }
+               const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
+                if (bRes.ok) {
+                    const bData = await bRes.json();
+                    if (!bData || !bData.values || bData.values.length === 0) {
+                        throw new Error(`Không tìm thấy Board nào cho Project Key: ${key}`);
                     }
-                } catch (e) { }
+                    const boardId = bData.values[0].id;
+                    try {
+                        const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+                        if (sRes.ok) {
+                            const sData = await sRes.json();
+                            sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
+                        }
+                    } catch (e) { }
+                } else {
+                    throw new Error(`Project Key không tồn tại hoặc bạn không có quyền truy cập: ${key}`);
+                }
 
                 try {
                     const eRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
