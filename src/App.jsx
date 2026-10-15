@@ -461,10 +461,8 @@ export default function App() {
                 showToast("Loaded Jira metadata successfully!", 'success');
             }
         } catch (err) {
-            if (!isAuto) {
-                hideLoadingToast();
-                showToast("Failed to load Jira metadata: " + err.message, 'error');
-            }
+            hideLoadingToast();
+            showToast("Auto-sync failed: " + err.message, 'error');
         }
     };
 
@@ -1068,7 +1066,7 @@ export default function App() {
                 let calculatedTicketStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
 
                 let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
-                let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
+                let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${calculatedTicketStr} / Total: ${totalBoardTickets} tickets\n`;
                 finalReport = summarySection + finalReport;
                 const romanize = (num) => {
                     const lookup = { M: 1000, CM: 900, d: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1 };
