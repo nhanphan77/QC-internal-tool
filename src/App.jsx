@@ -462,6 +462,7 @@ export default function App() {
                 showToast("Loaded Jira metadata successfully!", 'success');
             }
         } catch (err) {
+		setJiraStatuses([]);
             hideLoadingToast();
             showToast("Auto-sync failed: " + err.message, 'error');
         }
@@ -580,10 +581,22 @@ export default function App() {
         if (!versionGameInput) errors.push("Game Version");
         if (isAppRequired && !versionAppInput) errors.push("App Version");
         if (selectedScopes.length === 0) errors.push("Scope of Testing (at least 1)");
-
+ 
+	if (projectKeysInput.length > 0 && jiraStatuses.length === 0) {
+            errors.push("Sync Failed");
+        }	
+	
         setFormErrors(errors);
 
         if (errors.length > 0) {
+
+		if (errors.includes("Sync Failed")) {
+                showToast("Cannot generate: Jira sync failed. Please check the Project Key and try again.", 'error');
+                setFormErrors(prev => [...prev, "Project Key"]); // Bôi đỏ ô Project Key
+                if (projectKeyRef.current) projectKeyRef.current.focus(); // Đẩy con trỏ chuột về ô Project Key
+                return;
+            }
+
             showToast("Missing required fields: " + errors.join(', '), 'error');
             if (errors.includes("Project Key") && projectKeyRef.current) projectKeyRef.current.focus();
             else if (errors.includes("QC Team") && qcTeamRef.current) qcTeamRef.current.focus();
@@ -1725,20 +1738,18 @@ export default function App() {
             )}
 
             {toasts.length > 0 && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-                    <div className="flex flex-col gap-4 w-full max-w-lg">
-                        {toasts.map(toast => (
-                            <div key={toast.id} className={`p-5 rounded-2xl shadow-2xl border text-sm font-bold flex items-center justify-between gap-4 transition-all ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : (toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800')}`}>
-                                <div className="flex items-center gap-3">
-                                    {toast.type === 'loading' && <svg className="animate-spin h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                                    <span className="text-base leading-relaxed">{toast.message}</span>
-                                </div>
-                                {toast.type !== 'loading' && (
-                                    <button type="button" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all">✕</button>
-                                )}
+                <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 w-full max-w-lg pointer-events-none">
+                    {toasts.map(toast => (
+                        <div key={toast.id} className={`pointer-events-auto p-4 rounded-2xl shadow-xl border text-sm font-bold flex items-center justify-between gap-4 transition-all ${toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : (toast.type === 'loading' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800')}`}>
+                            <div className="flex items-center gap-3">
+                                {toast.type === 'loading' && <svg className="animate-spin h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                                <span className="text-base leading-relaxed">{toast.message}</span>
                             </div>
-                        ))}
-                    </div>
+                            {toast.type !== 'loading' && (
+                                <button type="button" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all">✕</button>
+                            )}
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
