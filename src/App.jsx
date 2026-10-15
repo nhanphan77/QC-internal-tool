@@ -31,7 +31,6 @@ export default function App() {
     const [dateReport, setDateReport] = useState('');
     const [qcNames, setQcNames] = useState('');
     const [testingStatus, setTestingStatus] = useState('In-testing');
-    const [buildStatus, setbuildStatus] = useState('Passed');
 
     const [versionGame, setVersionGame] = useState('');
     const [dateGame, setDateGame] = useState('');
@@ -158,7 +157,6 @@ export default function App() {
                 if (state.dateApp) setDateApp(state.dateApp);
                 if (state.qcNames) setQcNames(state.qcNames);
                 if (state.testingStatus !== undefined) setTestingStatus(state.testingStatus);
-                if (state.buildStatus !== undefined) setbuildStatus(state.buildStatus);
                 if (state.chkCustomNote !== undefined) setChkCustomNote(state.chkCustomNote);
                 if (Array.isArray(state.customNotes)) setCustomNotesData(state.customNotes);
                 if (state.customIframesData !== undefined) {
@@ -224,7 +222,7 @@ export default function App() {
     useEffect(() => {
         const config = {
             sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-            qcNames, testingStatus, buildStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+            qcNames, testingStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint,
@@ -233,7 +231,7 @@ export default function App() {
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
-        qcNames, testingStatus, buildStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
+        qcNames, testingStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint,
         jiraTagsList, checkedJiraTagsMap
@@ -1068,7 +1066,6 @@ export default function App() {
                 if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
                 
                 let calculatedTicketStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
-                let buildStatusStr = buildStatus.trim() ? buildStatus.trim() : calculatedTicketStr;
 
                 let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
                 let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${buildStatusStr} / Total: ${totalBoardTickets} tickets\n`;
@@ -1383,15 +1380,9 @@ export default function App() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-600">Testing Status</label>
-                            <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600" />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-600">Build Status</label>
-                            <input type="text" value={buildStatus} onChange={e => setbuildStatus(e.target.value)} placeholder="Passed..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600" />
-                        </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-slate-600">Testing Status</label>
+                        <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600" />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
