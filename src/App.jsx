@@ -20,7 +20,77 @@ const formatColumnList = (cols) => {
     return `${cols.slice(0, -1).join(', ')} and ${cols[cols.length - 1]}`;
 };
 
+const SearchableDropdown = React.forwardRef(({ options, value, onChange, placeholder, isError }, ref) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const wrapperRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = options.filter(opt => 
+        (opt.label || opt).toString().toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const displayValue = options.find(opt => (opt.value || opt) === value);
+    const displayLabel = displayValue ? (displayValue.label || displayValue) : value;
+
+    return (
+        <div ref={wrapperRef} className="relative w-full">
+            <div 
+                ref={ref}
+                tabIndex={0}
+                className={`h-10 px-3.5 bg-white border rounded-xl text-xs font-semibold text-slate-900 flex items-center justify-between cursor-pointer transition-all ${isError ? 'border-rose-500' : 'border-slate-300 hover:border-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none'}`}
+                onClick={() => { setIsOpen(!isOpen); setSearchTerm(''); }}
+            >
+                <span className="truncate">{displayLabel || placeholder}</span>
+                <span className="text-slate-400 ml-2 text-[10px]">▼</span>
+            </div>
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 flex flex-col overflow-hidden">
+                    <div className="p-2 border-b border-slate-100 bg-slate-50">
+                        <input 
+                            type="text" 
+                            className="w-full p-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500" 
+                            placeholder="Search..." 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
+                    <div className="overflow-y-auto py-1">
+                        {filteredOptions.length > 0 ? filteredOptions.map((opt, i) => {
+                            const val = opt.value || opt;
+                            const lbl = opt.label || opt;
+                            return (
+                                <div 
+                                    key={i} 
+                                    className="px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer transition-colors border-b border-slate-50 last:border-0"
+                                    onClick={() => { onChange(val); setIsOpen(false); }}
+                                >
+                                    {lbl}
+                                </div>
+                            );
+                        }) : (
+                            <div className="px-3 py-3 text-xs text-slate-400 text-center font-medium">No results found</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+
 export default function App() {
+    const [availableProjects, setAvailableProjects] = useState([]);
+    const [availableSheetTabs, setAvailableSheetTabs] = useState([]);
     const [availableBoards, setAvailableBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
     const [workspaces, setWorkspaces] = useState(() => JSON.parse(localStorage.getItem('jira_workspaces')) || []);
@@ -32,6 +102,7 @@ export default function App() {
     const [sheetName, setSheetName] = useState('');
     const [sheetTabName, setSheetTabName] = useState('');
     const [dateReport, setDateReport] = useState('');
+    const [customReportName, setCustomReportName] = useState('');
     const [qcNames, setQcNames] = useState('');
     const [testingStatus, setTestingStatus] = useState('In-testing');
 
@@ -85,13 +156,13 @@ export default function App() {
     const syncTimeoutRef = useRef(null);
 
     const extractDomain = (url) => {
-    try {
-        const hostname = new URL(url).hostname;
-        return hostname.split('.')[0];
-    } catch {
-        return '';
-    }
-};
+        try {
+            const hostname = new URL(url).hostname;
+            return hostname.split('.')[0];
+        } catch {
+            return '';
+        }
+    };
 	
     const showToast = (message, type) => {
         const id = Date.now() + Math.random();
@@ -114,6 +185,10 @@ export default function App() {
         setJiraToken(null);
         setJiraRefreshToken(null);
         setJiraCloudId(null);
+        setAvailableProjects([]);
+        setAvailableBoards([]);
+        setJiraSprints([]);
+        setJiraParents([]);
         showToast("Disconnected Jira.", 'success');
     };
 
@@ -156,6 +231,24 @@ export default function App() {
     };
 
     useEffect(() => {
+        if (jiraToken && jiraCloudId) {
+            fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project`, { headers: { 'Accept': 'application/json' } })
+                .then(res => {
+                    if (!res.ok) throw new Error("Failed");
+                    return res.json();
+                })
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        setAvailableProjects(data.map(p => ({ value: p.key, label: `${p.key} - ${p.name}` })));
+                    }
+                })
+                .catch(e => console.error("Failed to load projects", e));
+        } else {
+            setAvailableProjects([]);
+        }
+    }, [jiraToken, jiraCloudId]);
+
+    useEffect(() => {
         const savedData = localStorage.getItem('last_session_state');
         if (savedData) {
             try {
@@ -163,6 +256,7 @@ export default function App() {
                 if (state.sheetName) setSheetName(state.sheetName);
                 if (state.sheetTabName) setSheetTabName(state.sheetTabName);
                 if (state.dateReport) setDateReport(state.dateReport);
+                if (state.customReportName) setCustomReportName(state.customReportName);
                 if (state.versionGame) setVersionGame(state.versionGame);
                 if (state.dateGame) setDateGame(state.dateGame);
                 if (state.versionApp) setVersionApp(state.versionApp);
@@ -192,6 +286,7 @@ export default function App() {
                 if (Array.isArray(state.jiraSprints)) setJiraSprints(state.jiraSprints);
                 if (state.selectedParent) setSelectedParent(state.selectedParent);
                 if (state.selectedSprint) setSelectedSprint(state.selectedSprint);
+                if (Array.isArray(state.availableSheetTabs)) setAvailableSheetTabs(state.availableSheetTabs);
             } catch (e) { }
         } else {
             const initMap = {};
@@ -215,24 +310,22 @@ export default function App() {
                     if (!res.ok || data.error) throw new Error(data.error || 'Authentication failed');
 
                     const resourcesRes = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
-        headers: {
-            'Authorization': `Bearer ${data.access_token}`,
-            'Accept': 'application/json'
-        }
-    });
-    
-    if (!resourcesRes.ok) throw new Error('Failed to fetch accessible resources');
-    const resourcesData = await resourcesRes.json();
-    
-    // Lưu danh sách workspace vào state
-    setWorkspaces(resourcesData);
-    localStorage.setItem('jira_workspaces', JSON.stringify(resourcesData));
+                        headers: {
+                            'Authorization': `Bearer ${data.access_token}`,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    if (!resourcesRes.ok) throw new Error('Failed to fetch accessible resources');
+                    const resourcesData = await resourcesRes.json();
+                    
+                    setWorkspaces(resourcesData);
+                    localStorage.setItem('jira_workspaces', JSON.stringify(resourcesData));
 
-    // Mặc định chọn workspace đầu tiên trong danh sách nếu chưa có
-    if (resourcesData.length > 0) {
-        setJiraCloudId(resourcesData[0].id);
-        localStorage.setItem('jira_cloud_id', resourcesData[0].id);
-    }			
+                    if (resourcesData.length > 0) {
+                        setJiraCloudId(resourcesData[0].id);
+                        localStorage.setItem('jira_cloud_id', resourcesData[0].id);
+                    }			
 
                     setJiraToken(data.access_token);
                     setJiraRefreshToken(data.refresh_token);
@@ -254,20 +347,20 @@ export default function App() {
 
     useEffect(() => {
         const config = {
-            sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
+            sheetName, sheetTabName, dateReport, customReportName, versionGame, dateGame, versionApp, dateApp,
             qcNames, testingStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, jiraSprints, selectedParent, selectedSprint,
-            jiraTagsList, checkedJiraTagsMap
+            jiraTagsList, checkedJiraTagsMap, availableSheetTabs
         };
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
-        sheetName, sheetTabName, dateReport, versionGame, dateGame, versionApp, dateApp,
+        sheetName, sheetTabName, dateReport, customReportName, versionGame, dateGame, versionApp, dateApp,
         qcNames, testingStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, jiraSprints, selectedParent, selectedSprint,
-        jiraTagsList, checkedJiraTagsMap
+        jiraTagsList, checkedJiraTagsMap, availableSheetTabs
     ]);
 
     useEffect(() => {
@@ -320,6 +413,36 @@ export default function App() {
         });
     };
 
+    const handleLoadTabs = async () => {
+        try {
+            showToast('Loading sheet tabs...', 'loading');
+            let token = await getGoogleTokenAsync();
+            const spreadsheetId = "1XF2bOLyXoVM3Py6qYBidSe1tcfOqMuuwg14wnLVf1lA";
+            const sheetApiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+            
+            let res = await fetch(sheetApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.status === 401) {
+                token = await getGoogleTokenAsync(true);
+                res = await fetch(sheetApiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+            }
+            if (!res.ok) throw new Error(`Google Sheets API Error: ${res.statusText}`);
+            
+            const data = await res.json();
+            const tabs = data.sheets.map(s => s.properties.title);
+            setAvailableSheetTabs(tabs);
+            
+            if (tabs.length > 0 && !sheetTabName) {
+                setSheetTabName(tabs[0]);
+            }
+            
+            hideLoadingToast();
+            showToast("Loaded tabs successfully!", 'success');
+        } catch (error) {
+            hideLoadingToast();
+            showToast("Google Sheets Error: " + error.message, 'error');
+        }
+    };
+
     const getGameIdFromDriveFolder = async (folderUrl, token) => {
         if (!folderUrl) return { id: null, accessible: false };
         const folderIdMatch = folderUrl.match(/(?:folders\/|d\/|id=)([a-zA-Z0-9-_]+)/);
@@ -333,8 +456,8 @@ export default function App() {
             
             const data = await res.json();
             const folderName = data.name || '';
-            const gameIdMatch = folderName.match(/^\d{4}/);
-            return { id: gameIdMatch ? gameIdMatch[0] : null, accessible: true };
+            const gameIdMatch = folderName.match(/(\d{4})/);
+            return { id: gameIdMatch ? gameIdMatch[1] : null, accessible: true };
         } catch (e) {
             return { id: null, accessible: false };
         }
@@ -413,6 +536,7 @@ export default function App() {
                 let currentToken = null;
                 const keysStr = keys.map(k => `"${k}"`).join(',');
                 const tagJql = `project in (${keysStr}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question) ORDER BY created DESC`;
+                
                 while (jHasMore) {
                     const payload = { jql: tagJql, maxResults: 100, fields: ["summary"] };
                     if (currentToken) payload.nextPageToken = currentToken;
@@ -500,7 +624,7 @@ export default function App() {
                 showToast("Loaded Jira metadata successfully!", 'success');
             }
         } catch (err) {
-		setJiraStatuses([]);
+            setJiraStatuses([]);
             hideLoadingToast();
             showToast("Auto-sync failed: " + err.message, 'error');
         }
@@ -642,18 +766,17 @@ export default function App() {
         if (isAppRequired && !versionAppInput) errors.push("App Version");
         if (selectedScopes.length === 0) errors.push("Scope of Testing (at least 1)");
  
-	if (projectKeysInput.length > 0 && jiraStatuses.length === 0) {
+        if (projectKeysInput.length > 0 && jiraStatuses.length === 0) {
             errors.push("Sync Failed");
         }	
 	
         setFormErrors(errors);
 
         if (errors.length > 0) {
-
-		if (errors.includes("Sync Failed")) {
+            if (errors.includes("Sync Failed")) {
                 showToast("Cannot generate: Jira sync failed. Please check the Project Key and try again.", 'error');
-                setFormErrors(prev => [...prev, "Project Key"]); // Bôi đỏ ô Project Key
-                if (projectKeyRef.current) projectKeyRef.current.focus(); // Đẩy con trỏ chuột về ô Project Key
+                setFormErrors(prev => [...prev, "Project Key"]); 
+                if (projectKeyRef.current) projectKeyRef.current.focus(); 
                 return;
             }
 
@@ -666,7 +789,7 @@ export default function App() {
             return;
         }
 
-	if (jiraStatuses.length === 0) {
+        if (jiraStatuses.length === 0) {
             showToast("Cannot generate report: Jira data is not synced. Please check your Project Key and sync first.", 'error');
             return;
         }
@@ -1030,6 +1153,7 @@ export default function App() {
             try {
                 let targetName = projectKeysInput.join(', ');
                 let realKey = projectKeysInput[0];
+                let projectStyle = '';
 
                 try {
                     const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
@@ -1037,13 +1161,14 @@ export default function App() {
                         const pData = await pRes.json();
                         if (pData && pData.name && projectKeysInput.length === 1) targetName = pData.name;
                         if (pData && pData.key) realKey = pData.key;
+                        if (pData && pData.style) projectStyle = pData.style; 
                     }
                 } catch (e) { }
 
                 let boardId = selectedBoardId;
                 const matchedBoard = availableBoards.find(b => b.id == boardId);
                 if (matchedBoard) {
-                    targetName = matchedBoard.name; // Tên báo cáo sẽ lấy chính xác tên Board nhỏ (VD: 9663 - Mecha Reign)
+                    targetName = matchedBoard.name; 
                 }
 
                 let jqlString = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
@@ -1082,10 +1207,12 @@ export default function App() {
                 const currentWorkspace = workspaces.find(ws => ws.id === jiraCloudId);
                 const baseUrl = currentWorkspace ? currentWorkspace.url : `https://enotion.atlassian.net`;
 
+                const pathPrefix = (projectStyle === 'classic') ? '/jira/software/c/projects' : '/jira/software/projects';
+
                 if (boardId) {
-                    autoJiraLink = `${baseUrl}/jira/software/projects/${realKey}/boards/${boardId}`;
+                    autoJiraLink = `${baseUrl}${pathPrefix}/${realKey}/boards/${boardId}`;
                 } else {
-                    autoJiraLink = `${baseUrl}/jira/software/projects/${realKey}/boards`;
+                    autoJiraLink = `${baseUrl}${pathPrefix}/${realKey}/boards`;
                 }
 
                 const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
@@ -1097,8 +1224,10 @@ export default function App() {
                     let statusName = (issue.fields.status && issue.fields.status.name) ? issue.fields.status.name.toUpperCase().trim() : '';
                     if (checkedJiraUnverified[statusName]) { unverifiedCount++; unverifiedStatusesFound.add(statusName); }
                     if (checkedJiraPending[statusName]) { pendingCount++; pendingStatusesFound.add(statusName); }
+                    
                     let issueTypeName = (issue.fields.issuetype && issue.fields.issuetype.name) ? issue.fields.issuetype.name.toUpperCase().trim() : '';
-		    if (issueTypeName === 'BUG/DEFECT') issueTypeName = 'BUG';
+                    if (issueTypeName === 'BUG/DEFECT') issueTypeName = 'BUG';
+
                     totalBoardTickets++;
                     if (typeContainers[issueTypeName] === undefined) return;
                     let isValidStatus = false;
@@ -1232,7 +1361,9 @@ export default function App() {
             };
             const inputReportDate = formatDate(dateReport, currentDateStr);
             let baseBoardName = (detectedBoardName || projectKeysInput.join(', ')).replace(/^\[.*?\]\s*/, '').replace(/\s*-\s*/g, ' - ').trim();
-            let customHeader = `Report for ${baseBoardName} (${inputReportDate})\n`;
+            let finalReportName = customReportName.trim() ? customReportName.trim() : baseBoardName;
+            let customHeader = `Report for ${finalReportName} (${inputReportDate})\n`;
+
             if (versionGameInput) {
                 const vGame = versionGameInput.split('/').map(v => v.trim().toLowerCase().startsWith('v') ? v.trim() : 'v' + v.trim()).join('/');
                 customHeader += `Version game: ${vGame} (${formatDate(dateGame, currentDateStr)})\n`;
@@ -1424,23 +1555,25 @@ export default function App() {
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-slate-600">Project Key(s)</label>
                         <div className="flex gap-2">
-                            <input
-                                ref={projectKeyRef}
-                                type="text"
-                                value={sheetName}
-                                onChange={e => {
-                                    setSheetName(e.target.value);
-                                    setFormErrors(prev => prev.filter(err => err !== "Project Key"));
-                                }}
-                                placeholder="e.g. 9707, WS019775"
-                                className={`flex-1 h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-colors ${formErrors.includes("Project Key") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
-                            />
+                            <div className="flex-1">
+                                <SearchableDropdown 
+                                    ref={projectKeyRef}
+                                    options={availableProjects} 
+                                    value={sheetName} 
+                                    onChange={val => {
+                                        setSheetName(val);
+                                        setFormErrors(prev => prev.filter(err => err !== "Project Key"));
+                                    }} 
+                                    placeholder="Select Project..."
+                                    isError={formErrors.includes("Project Key")}
+                                />
+                            </div>
                             <button type="button" onClick={handleLoadStatuses} className="px-3.5 h-10 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1">
                                 <span>↻ Sync</span>
                             </button>
                         </div>
                     </div>
-		    {availableBoards.length > 0 && (
+                    {availableBoards.length > 0 && (
                         <div className="flex flex-col gap-1.5 mt-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                             <label className="text-xs font-bold text-indigo-700">Select Specific Board (Studio/Game)</label>
                             <select 
@@ -1475,17 +1608,24 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold text-slate-600">Sheet Tab Name</label>
-                            <input
-                                ref={sheetTabNameRef}
-                                type="text"
-                                value={sheetTabName}
-                                onChange={e => {
-                                    setSheetTabName(e.target.value);
-                                    setFormErrors(prev => prev.filter(err => err !== "Sheet Name"));
-                                }}
-                                placeholder="Sheet Name"
-                                className={`h-10 px-3.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none transition-colors ${formErrors.includes("Sheet Name") ? 'border-rose-500' : 'border-slate-300 focus:border-indigo-600'}`}
-                            />
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <SearchableDropdown 
+                                        ref={sheetTabNameRef}
+                                        options={availableSheetTabs.map(t => ({ value: t, label: t }))} 
+                                        value={sheetTabName} 
+                                        onChange={val => {
+                                            setSheetTabName(val);
+                                            setFormErrors(prev => prev.filter(err => err !== "Sheet Tab Name"));
+                                        }} 
+                                        placeholder="Select Tab..."
+                                        isError={formErrors.includes("Sheet Tab Name")}
+                                    />
+                                </div>
+                                <button type="button" onClick={handleLoadTabs} className="px-3.5 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center">
+                                    <span>↻ Load</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex flex-col gap-1.5">
@@ -1494,9 +1634,15 @@ export default function App() {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-600">Testing Status</label>
-                        <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600" />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold text-slate-600">Custom Report Name</label>
+                            <input type="text" value={customReportName} onChange={e => setCustomReportName(e.target.value)} placeholder="Optional: Override default name" className="w-full h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold text-slate-600">Testing Status</label>
+                            <input type="text" value={testingStatus} onChange={e => setTestingStatus(e.target.value)} placeholder="In-testing..." className="h-10 px-3.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600" />
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
