@@ -21,6 +21,9 @@ const formatColumnList = (cols) => {
 };
 
 export default function App() {
+    const [availableBoards, setAvailableBoards] = useState([]);
+    const [selectedBoardId, setSelectedBoardId] = useState('');
+    const [workspaces, setWorkspaces] = useState(() => JSON.parse(localStorage.getItem('jira_workspaces')) || []);
     const [jiraToken, setJiraToken] = useState(() => localStorage.getItem('jira_access_token') || null);
     const [jiraRefreshToken, setJiraRefreshToken] = useState(() => localStorage.getItem('jira_refresh_token') || null);
     const [jiraCloudId, setJiraCloudId] = useState(() => localStorage.getItem('jira_cloud_id') || null);
@@ -81,6 +84,15 @@ export default function App() {
 
     const syncTimeoutRef = useRef(null);
 
+    const extractDomain = (url) => {
+    try {
+        const hostname = new URL(url).hostname;
+        return hostname.split('.')[0];
+    } catch {
+        return '';
+    }
+};
+	
     const showToast = (message, type) => {
         const id = Date.now() + Math.random();
         setToasts(prev => [...prev.filter(t => t.type !== 'loading'), { id, message, type }]);
@@ -201,6 +213,27 @@ export default function App() {
                     });
                     const data = await res.json();
                     if (!res.ok || data.error) throw new Error(data.error || 'Authentication failed');
+
+                    const resourcesRes = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+        headers: {
+            'Authorization': `Bearer ${data.access_token}`,
+            'Accept': 'application/json'
+        }
+    });
+    
+    if (!resourcesRes.ok) throw new Error('Failed to fetch accessible resources');
+    const resourcesData = await resourcesRes.json();
+    
+    // Lưu danh sách workspace vào state
+    setWorkspaces(resourcesData);
+    localStorage.setItem('jira_workspaces', JSON.stringify(resourcesData));
+
+    // Mặc định chọn workspace đầu tiên trong danh sách nếu chưa có
+    if (resourcesData.length > 0) {
+        setJiraCloudId(resourcesData[0].id);
+        localStorage.setItem('jira_cloud_id', resourcesData[0].id);
+    }			
+
                     setJiraToken(data.access_token);
                     setJiraRefreshToken(data.refresh_token);
                     setJiraCloudId(data.cloud_id);
@@ -343,9 +376,15 @@ export default function App() {
                     if (!bData || !bData.values || bData.values.length === 0) {
                         throw new Error(`No board found for Project Key: ${key}`);
                     }
-                    const boardId = bData.values[0].id;
+                    
+                    const fetchedBoards = bData.values.map(b => ({ id: b.id, name: b.name }));
+                    setAvailableBoards(fetchedBoards);
+                    
+                    const initialBoardId = fetchedBoards[0].id;
+                    setSelectedBoardId(initialBoardId);
+
                     try {
-                        const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+                        const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${initialBoardId}/sprint`, { headers: { 'Accept': 'application/json' } });
                         if (sRes.ok) {
                             const sData = await sRes.json();
                             sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
@@ -373,8 +412,7 @@ export default function App() {
                 let jHasMore = true;
                 let currentToken = null;
                 const keysStr = keys.map(k => `"${k}"`).join(',');
-                const tagJql = `project in (${keysStr}) AND issuetype in (Bug, Improvement, Question) ORDER BY created DESC`;
-                
+                const tagJql = `project in (${keysStr}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question) ORDER BY created DESC`;
                 while (jHasMore) {
                     const payload = { jql: tagJql, maxResults: 100, fields: ["summary"] };
                     if (currentToken) payload.nextPageToken = currentToken;
@@ -470,6 +508,28 @@ export default function App() {
 
     const handleLoadStatuses = () => {
         fetchJiraStatuses(sheetName.trim(), false);
+    };
+
+    const handleBoardChange = async (e) => {
+        const newBoardId = e.target.value;
+        setSelectedBoardId(newBoardId);
+        if (!newBoardId || !jiraCloudId) return;
+
+        showToast('Loading sprints for selected board...', 'loading');
+        try {
+            const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${newBoardId}/sprint`, { headers: { 'Accept': 'application/json' } });
+            if (sRes.ok) {
+                const sData = await sRes.json();
+                const sList = sData.values?.map(s => ({ id: s.id, name: s.name })) || [];
+                setJiraSprints(sList);
+                setSelectedSprint('All'); 
+                hideLoadingToast();
+                showToast('Loaded sprints for board!', 'success');
+            }
+        } catch (err) {
+            hideLoadingToast();
+            setJiraSprints([]);
+        }
     };
 
     const toggleAllJiraCategory = (category, selectAll) => {
@@ -970,7 +1030,6 @@ export default function App() {
             try {
                 let targetName = projectKeysInput.join(', ');
                 let realKey = projectKeysInput[0];
-                let boardId = '';
 
                 try {
                     const pRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project/${realKey}`, { headers: { 'Accept': 'application/json' } });
@@ -981,17 +1040,13 @@ export default function App() {
                     }
                 } catch (e) { }
 
-                try {
-                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${realKey}`, { headers: { 'Accept': 'application/json' } });
-                    if (bRes.ok) {
-                        const bData = await bRes.json();
-                        if (bData && bData.values && bData.values.length > 0) {
-                            boardId = bData.values[0].id;
-                        }
-                    }
-                } catch (e) { }
+                let boardId = selectedBoardId;
+                const matchedBoard = availableBoards.find(b => b.id == boardId);
+                if (matchedBoard) {
+                    targetName = matchedBoard.name; // Tên báo cáo sẽ lấy chính xác tên Board nhỏ (VD: 9663 - Mecha Reign)
+                }
 
-                let jqlString = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND issuetype in (Bug, Improvement, Question)`;
+                let jqlString = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
                 if (selectedParent !== 'All') jqlString += ` AND (parent = "${selectedParent}" OR "Epic Link" = "${selectedParent}")`;
                 if (selectedSprint !== 'All') jqlString += ` AND sprint = ${selectedSprint}`;
                 jqlString += ` ORDER BY created DESC`;
@@ -1024,10 +1079,13 @@ export default function App() {
                 const jiraIssues = Array.from(issueMap.values());
                 detectedBoardName = targetName;
 
+                const currentWorkspace = workspaces.find(ws => ws.id === jiraCloudId);
+                const baseUrl = currentWorkspace ? currentWorkspace.url : `https://enotion.atlassian.net`;
+
                 if (boardId) {
-                    autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards/${boardId}`;
+                    autoJiraLink = `${baseUrl}/jira/software/projects/${realKey}/boards/${boardId}`;
                 } else {
-                    autoJiraLink = `https://enotion.atlassian.net/jira/software/projects/${realKey}/boards`;
+                    autoJiraLink = `${baseUrl}/jira/software/projects/${realKey}/boards`;
                 }
 
                 const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
@@ -1040,6 +1098,7 @@ export default function App() {
                     if (checkedJiraUnverified[statusName]) { unverifiedCount++; unverifiedStatusesFound.add(statusName); }
                     if (checkedJiraPending[statusName]) { pendingCount++; pendingStatusesFound.add(statusName); }
                     const issueTypeName = (issue.fields.issuetype && issue.fields.issuetype.name) ? issue.fields.issuetype.name.toUpperCase().trim() : '';
+		    if (issueTypeName === 'BUG/DEFECT') issueTypeName = 'BUG';
                     totalBoardTickets++;
                     if (typeContainers[issueTypeName] === undefined) return;
                     let isValidStatus = false;
@@ -1312,21 +1371,45 @@ export default function App() {
                         <p className="text-xs text-slate-500 font-medium">Internal Report Generator</p>
                     </div>
                 </div>
-
-                <div className="flex items-center gap-3 bg-white/90 border border-slate-200 px-4 py-2 rounded-2xl backdrop-blur-md shadow-sm">
-                    <span className={`w-2.5 h-2.5 rounded-full ${jiraToken && jiraCloudId ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-400'}`}></span>
-                    <span className="text-xs font-semibold text-slate-700">
-                        {jiraToken && jiraCloudId ? "Jira Connected" : "Jira Disconnected"}
-                    </span>
-                    {jiraToken && jiraCloudId ? (
-                        <button onClick={handleJiraDisconnect} className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-300 transition-all">
-                            Disconnect
-                        </button>
-                    ) : (
-                        <button onClick={initiateJiraSSO} className="text-xs px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all">
-                            Connect SSO
-                        </button>
+                <div className="flex items-center gap-4">
+                    
+                    {workspaces.length > 0 && jiraToken && (
+                        <div className="flex items-center gap-2">
+                            <label className="text-xs font-semibold text-slate-600">Workspace:</label>
+                            <select 
+                                value={jiraCloudId || ''} 
+                                onChange={e => {
+                                    const newCloudId = e.target.value;
+                                    setJiraCloudId(newCloudId);
+                                    localStorage.setItem('jira_cloud_id', newCloudId);
+                                    showToast("Switched Jira Workspace", 'success');
+                                }}
+                                className="h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 shadow-sm"
+                            >
+                                {workspaces.map(ws => (
+                                    <option key={ws.id} value={ws.id}>
+                                        {ws.name} ({extractDomain(ws.url)})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     )}
+
+                    <div className="flex items-center gap-3 bg-white/90 border border-slate-200 px-4 py-2 rounded-2xl backdrop-blur-md shadow-sm">
+                        <span className={`w-2.5 h-2.5 rounded-full ${jiraToken && jiraCloudId ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-400'}`}></span>
+                        <span className="text-xs font-semibold text-slate-700">
+                            {jiraToken && jiraCloudId ? "Jira Connected" : "Jira Disconnected"}
+                        </span>
+                        {jiraToken && jiraCloudId ? (
+                            <button onClick={handleJiraDisconnect} className="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-300 transition-all">
+                                Disconnect
+                            </button>
+                        ) : (
+                            <button onClick={initiateJiraSSO} className="text-xs px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all">
+                                Connect SSO
+                            </button>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -1357,6 +1440,20 @@ export default function App() {
                             </button>
                         </div>
                     </div>
+		    {availableBoards.length > 0 && (
+                        <div className="flex flex-col gap-1.5 mt-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                            <label className="text-xs font-bold text-indigo-700">Select Specific Board (Studio/Game)</label>
+                            <select 
+                                value={selectedBoardId} 
+                                onChange={handleBoardChange} 
+                                className="h-10 px-3 bg-white border border-indigo-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600 shadow-sm"
+                            >
+                                {availableBoards.map(b => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
