@@ -534,35 +534,20 @@ export default function App() {
 
             try {
                 let tagSet = new Set();
-                let startAt = 0;
                 let jHasMore = true;
                 let currentToken = null;
                 const keysStr = keys.map(k => `"${k}"`).join(',');
                 const tagJql = `project in (${keysStr}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question) ORDER BY created DESC`;
                 
                 while (jHasMore) {
-                    let tRes;
+                    const payload = { jql: tagJql, maxResults: 100, fields: ["summary"] };
+                    if (currentToken) payload.nextPageToken = currentToken;
                     
-                    if (initialBoardId) {
-                        const queryParams = new URLSearchParams({
-                            jql: tagJql,
-                            maxResults: "100",
-                            startAt: startAt.toString(),
-                            fields: "summary"
-                        });
-                        tRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${initialBoardId}/issue?${queryParams.toString()}`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' }
-                        });
-                    } else {
-                        const payload = { jql: tagJql, maxResults: 100, fields: ["summary"] };
-                        if (currentToken) payload.nextPageToken = currentToken;
-                        tRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                    }
+                    const tRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
                     
                     if (tRes.ok) {
                         const d = await tRes.json();
@@ -573,16 +558,8 @@ export default function App() {
                             if (match) tagSet.add(match[1].trim().toUpperCase());
                         });
                         
-                        if (initialBoardId) {
-                            if (items.length === 100) {
-                                startAt += 100;
-                            } else {
-                                jHasMore = false;
-                            }
-                        } else {
-                            if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
-                            else jHasMore = false;
-                        }
+                        if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
+                        else jHasMore = false;
                     } else {
                         jHasMore = false;
                     }
@@ -1199,37 +1176,29 @@ export default function App() {
 
                 let jqlString = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
                 if (selectedParent !== 'All') jqlString += ` AND (parent = "${selectedParent}" OR "Epic Link" = "${selectedParent}")`;
-                if (selectedSprint !== 'All') jqlString += ` AND sprint = ${selectedSprint}`;
+                
+                if (selectedSprint !== 'All') {
+                    jqlString += ` AND sprint = ${selectedSprint}`;
+                } else if (jiraSprints.length > 0) {
+                    const allSprintIds = jiraSprints.map(s => s.id).join(',');
+                    jqlString += ` AND sprint in (${allSprintIds})`;
+                }
+                
                 jqlString += ` ORDER BY created DESC`;
 
                 const issueMap = new Map();
-                let startAt = 0;
                 let jHasMore = true;
                 let currentToken = null;
 
                 while (jHasMore) {
-                    let res;
-                    if (boardId) {
-                        const queryParams = new URLSearchParams({
-                            jql: jqlString,
-                            maxResults: "100",
-                            startAt: startAt.toString(),
-                            fields: "summary,status,issuetype,priority"
-                        });
-                        res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${boardId}/issue?${queryParams.toString()}`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' }
-                        });
-                    } else {
-                        const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
-                        if (currentToken) payload.nextPageToken = currentToken;
+                    const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
+                    if (currentToken) payload.nextPageToken = currentToken;
 
-                        res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                    }
+                    const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
 
                     if (!res.ok) {
                         hideLoadingToast();
@@ -1241,16 +1210,8 @@ export default function App() {
                     const items = d.issues || d.values || [];
                     items.forEach(iss => { if (iss && iss.key) issueMap.set(iss.key, iss); });
                     
-                    if (boardId) {
-                        if (items.length === 100) {
-                            startAt += 100;
-                        } else {
-                            jHasMore = false;
-                        }
-                    } else {
-                        if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
-                        else jHasMore = false;
-                    }
+                    if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
+                    else jHasMore = false;
                 }
                 const jiraIssues = Array.from(issueMap.values());
                 detectedBoardName = targetName;
