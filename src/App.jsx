@@ -11,13 +11,21 @@ const DEFAULT_SCOPES = [
     "Crosscheck", "Betfail", "Ban & Maintainance"
 ];
 
-const PRIORITY_ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
+const cleanStatusName = (s) => (s || '').trim().replace(/\s+/g, ' ').toUpperCase();
 
 const formatColumnList = (cols) => {
     if (!cols || cols.length === 0) return '';
     if (cols.length === 1) return cols[0];
     if (cols.length === 2) return `${cols[0]} and ${cols[1]}`;
     return `${cols.slice(0, -1).join(', ')} and ${cols[cols.length - 1]}`;
+};
+
+const extractDomain = (url) => {
+    try {
+        return new URL(url).hostname.split('.')[0];
+    } catch {
+        return '';
+    }
 };
 
 const SearchableDropdown = React.forwardRef(({ options, value, onChange, placeholder, isError }, ref) => {
@@ -39,7 +47,7 @@ const SearchableDropdown = React.forwardRef(({ options, value, onChange, placeho
         (opt.label || opt).toString().toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const displayValue = options.find(opt => (opt.value || opt) === value);
+    const displayValue = options.find(opt => (opt.value !== undefined ? opt.value : opt) === value);
     const displayLabel = displayValue ? (displayValue.label || displayValue) : value;
 
     return (
@@ -47,7 +55,7 @@ const SearchableDropdown = React.forwardRef(({ options, value, onChange, placeho
             <div 
                 ref={ref}
                 tabIndex={0}
-                className={`h-10 px-3.5 bg-white border rounded-xl text-xs font-semibold text-slate-900 flex items-center justify-between cursor-pointer transition-all ${isError ? 'border-rose-500' : 'border-slate-300 hover:border-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none'}`}
+                className={`h-10 px-3.5 bg-white border rounded-xl text-xs font-semibold text-slate-900 flex items-center justify-between cursor-pointer transition-all ${isError ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-300 hover:border-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 outline-none'}`}
                 onClick={() => { setIsOpen(!isOpen); setSearchTerm(''); }}
             >
                 <span className="truncate">{displayLabel || placeholder}</span>
@@ -67,8 +75,8 @@ const SearchableDropdown = React.forwardRef(({ options, value, onChange, placeho
                     </div>
                     <div className="overflow-y-auto py-1">
                         {filteredOptions.length > 0 ? filteredOptions.map((opt, i) => {
-                            const val = opt.value || opt;
-                            const lbl = opt.label || opt;
+                            const val = opt.value !== undefined ? opt.value : opt;
+                            const lbl = opt.label !== undefined ? opt.label : opt;
                             return (
                                 <div 
                                     key={i} 
@@ -88,16 +96,38 @@ const SearchableDropdown = React.forwardRef(({ options, value, onChange, placeho
     );
 });
 
+let refreshPromise = null;
+
+
+const fetchBoardIdByProject = async (jiraCloudId, projectKey, fetchWithAuth) => {
+    try {
+        const res = await fetchWithAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${projectKey}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.values && data.values.length > 0) {
+                return data.values[0].id;
+            }
+        }
+    } catch (e) {
+        console.warn("Could not fetch board id:", e);
+    }
+    return null;
+};
+
 export default function App() {
+    const [activeTabMode, setActiveTabMode] = useState(() => localStorage.getItem('qc_tool_mode') || 'hierarchy');
+
     const [availableProjects, setAvailableProjects] = useState([]);
     const [availableSheetTabs, setAvailableSheetTabs] = useState([]);
-    const [availableBoards, setAvailableBoards] = useState([]);
-    const [selectedBoardId, setSelectedBoardId] = useState('');
     const [workspaces, setWorkspaces] = useState(() => JSON.parse(localStorage.getItem('jira_workspaces')) || []);
     const [jiraToken, setJiraToken] = useState(() => localStorage.getItem('jira_access_token') || null);
     const [jiraRefreshToken, setJiraRefreshToken] = useState(() => localStorage.getItem('jira_refresh_token') || null);
     const [jiraCloudId, setJiraCloudId] = useState(() => localStorage.getItem('jira_cloud_id') || null);
     const [googleToken, setGoogleToken] = useState(() => localStorage.getItem('google_access_token') || null);
+
+    const [authTrigger, setAuthTrigger] = useState(0);
 
     const [sheetName, setSheetName] = useState('');
     const [sheetTabName, setSheetTabName] = useState('');
@@ -127,17 +157,29 @@ export default function App() {
     const [newScopeInput, setNewScopeInput] = useState('');
 
     const [jiraStatuses, setJiraStatuses] = useState([]);
-    const [jiraTagsList, setJiraTagsList] = useState([]);
-    const [checkedJiraTagsMap, setCheckedJiraTagsMap] = useState({});
-    const [isTagAccordionOpen, setIsTagAccordionOpen] = useState(true);
     const [checkedJiraB, setCheckedJiraB] = useState({});
     const [checkedJiraUnverified, setCheckedJiraUnverified] = useState({});
     const [checkedJiraPending, setCheckedJiraPending] = useState({});
 
+    const [jiraTagsList, setJiraTagsList] = useState([]);
+    const [checkedJiraTagsMap, setCheckedJiraTagsMap] = useState({});
+    const [isTagAccordionOpen, setIsTagAccordionOpen] = useState(true);
+
+    const [jiraPrioritiesList, setJiraPrioritiesList] = useState([]);
+    const [checkedPrioritiesMap, setCheckedPrioritiesMap] = useState({});
+    const [isPriorityAccordionOpen, setIsPriorityAccordionOpen] = useState(true);
+
     const [jiraParents, setJiraParents] = useState([]);
-    const [jiraSprints, setJiraSprints] = useState([]);
     const [selectedParent, setSelectedParent] = useState('All');
-    const [selectedSprint, setSelectedSprint] = useState('All');
+    const [availableBoards, setAvailableBoards] = useState([]);
+const [selectedBoardId, setSelectedBoardId] = useState('');
+
+    const [epicOptions, setEpicOptions] = useState([]);
+    const [selectedEpicKey, setSelectedEpicKey] = useState('');
+    const [epicTasksList, setEpicTasksList] = useState([]);
+    const [selectedTaskKey, setSelectedTaskKey] = useState('');
+    const [isLoadingEpics, setIsLoadingEpics] = useState(false);
+    const [isLoadingTasks, setIsLoadingTasks] = useState(false);
 
     const [outputReport, setOutputReport] = useState('');
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -155,15 +197,6 @@ export default function App() {
 
     const syncTimeoutRef = useRef(null);
 
-    const extractDomain = (url) => {
-        try {
-            const hostname = new URL(url).hostname;
-            return hostname.split('.')[0];
-        } catch {
-            return '';
-        }
-    };
-	
     const showToast = (message, type) => {
         const id = Date.now() + Math.random();
         setToasts(prev => [...prev.filter(t => t.type !== 'loading'), { id, message, type }]);
@@ -186,27 +219,47 @@ export default function App() {
         setJiraRefreshToken(null);
         setJiraCloudId(null);
         setAvailableProjects([]);
-        setAvailableBoards([]);
-        setJiraSprints([]);
         setJiraParents([]);
+        setEpicOptions([]);
+        setEpicTasksList([]);
+        setJiraStatuses([]);
+        setCheckedJiraB({});
+        setCheckedJiraUnverified({});
+        setCheckedJiraPending({});
+        setJiraPrioritiesList([]);
+        setCheckedPrioritiesMap({});
+        setJiraTagsList([]);
+        setCheckedJiraTagsMap({});
         showToast("Disconnected Jira.", 'success');
     };
 
     const refreshJiraToken = async () => {
-        const storedRefreshToken = localStorage.getItem('jira_refresh_token');
-        if (!storedRefreshToken) throw new Error("No refresh token available");
-        const res = await fetch('/api/jira-refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: storedRefreshToken })
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) throw new Error(data.error || 'Failed to refresh token');
-        setJiraToken(data.access_token);
-        setJiraRefreshToken(data.refresh_token);
-        localStorage.setItem('jira_access_token', data.access_token);
-        localStorage.setItem('jira_refresh_token', data.refresh_token);
-        return data.access_token;
+        if (refreshPromise) return refreshPromise;
+        
+        refreshPromise = (async () => {
+            try {
+                const storedRefreshToken = localStorage.getItem('jira_refresh_token');
+                if (!storedRefreshToken) throw new Error("No refresh token available");
+                const res = await fetch('/api/jira-refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken: storedRefreshToken })
+                });
+                const data = await res.json();
+                if (!res.ok || data.error) throw new Error(data.error || 'Failed to refresh token');
+                
+                setJiraToken(data.access_token);
+                setJiraRefreshToken(data.refresh_token);
+                localStorage.setItem('jira_access_token', data.access_token);
+                localStorage.setItem('jira_refresh_token', data.refresh_token);
+                
+                return data.access_token;
+            } finally {
+                refreshPromise = null;
+            }
+        })();
+        
+        return refreshPromise;
     };
 
     const fetchWithJiraAuth = async (url, options = {}) => {
@@ -231,7 +284,8 @@ export default function App() {
     };
 
     useEffect(() => {
-        if (jiraToken && jiraCloudId) {
+        const currentToken = localStorage.getItem('jira_access_token');
+        if (currentToken && jiraCloudId) {
             fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/project`, { headers: { 'Accept': 'application/json' } })
                 .then(res => {
                     if (!res.ok) throw new Error("Failed");
@@ -246,7 +300,203 @@ export default function App() {
         } else {
             setAvailableProjects([]);
         }
-    }, [jiraToken, jiraCloudId]);
+    }, [jiraCloudId, authTrigger]);
+
+    const registerPriorities = (newPriorities) => {
+        if (!newPriorities || newPriorities.length === 0) return;
+        const formatted = Array.from(new Set(newPriorities.map(p => p.trim()).filter(Boolean)));
+        
+        setJiraPrioritiesList(prev => Array.from(new Set([...prev, ...formatted])));
+
+        setCheckedPrioritiesMap(prev => {
+            const next = { ...prev };
+            formatted.forEach(p => {
+                if (next[p] === undefined) next[p] = true;
+            });
+            return next;
+        });
+    };
+
+    const registerStatusesToFilters = (newStatuses) => {
+        if (!newStatuses || newStatuses.length === 0) return;
+        
+        const formattedNew = Array.from(new Set(newStatuses.map(cleanStatusName).filter(Boolean)));
+
+        setJiraStatuses(prev => {
+            const existingClean = prev.map(cleanStatusName);
+            return Array.from(new Set([...existingClean, ...formattedNew]));
+        });
+
+        setCheckedJiraB(prev => {
+            const next = { ...prev };
+            formattedNew.forEach(s => {
+                if (next[s] === undefined) {
+                    const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                    next[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED', 'CLOSED'].includes(cleanS);
+                }
+            });
+            return next;
+        });
+
+        setCheckedJiraUnverified(prev => {
+            const next = { ...prev };
+            formattedNew.forEach(s => {
+                if (next[s] === undefined) {
+                    const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                    next[s] = ['DEPLOYED', 'INTESTING'].includes(cleanS);
+                }
+            });
+            return next;
+        });
+
+        setCheckedJiraPending(prev => {
+            const next = { ...prev };
+            formattedNew.forEach(s => {
+                if (next[s] === undefined) {
+                    const cleanS = s.replace(/[^A-Z0-9]/g, '');
+                    next[s] = ['PENDING', 'WAITFOR', 'WAITING'].some(p => cleanS.includes(p));
+                }
+            });
+            return next;
+        });
+    };
+
+    const registerTags = (newTags) => {
+        if (!newTags || newTags.length === 0) return;
+        const formatted = Array.from(new Set(newTags.map(t => t.trim().toUpperCase()).filter(Boolean)));
+        setJiraTagsList(prev => {
+            let combined = Array.from(new Set([...prev, ...formatted])).sort();
+            if (combined.includes('OTHERS')) {
+                combined = ['OTHERS', ...combined.filter(t => t !== 'OTHERS')];
+            }
+            return combined;
+        });
+        setCheckedJiraTagsMap(prev => {
+            const next = { ...prev };
+            formatted.forEach(t => {
+                if (next[t] === undefined) next[t] = true;
+            });
+            return next;
+        });
+    };
+
+    const syncSubTaskMetadata = async (taskKey) => {
+        if (!taskKey || !jiraCloudId) return;
+        try {
+            const payload = {
+                jql: `parent = "${taskKey}"`,
+                maxResults: 150,
+                fields: ["status", "summary", "priority"]
+            };
+            const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const items = data.issues || data.values || [];
+                
+                const foundStatuses = items.map(iss => iss.fields?.status?.name).filter(Boolean);
+                if (foundStatuses.length > 0) {
+                    registerStatusesToFilters(foundStatuses);
+                }
+
+                const foundPriorities = items.map(iss => iss.fields?.priority?.name).filter(Boolean);
+                if (foundPriorities.length > 0) {
+                    registerPriorities(foundPriorities);
+                }
+
+                const foundTags = new Set();
+                items.forEach(iss => {
+                    const summary = iss.fields?.summary || '';
+                    const match = summary.match(/\[([^\]]+)\]/);
+                    if (match) {
+                        foundTags.add(match[1].trim().toUpperCase());
+                    } else {
+                        foundTags.add('OTHERS');
+                    }
+                });
+
+                if (foundTags.size > 0) {
+                    registerTags(Array.from(foundTags));
+                }
+            }
+        } catch (e) {
+            console.warn("Could not scan sub-task metadata:", e);
+        }
+    };
+
+    const syncEpicsForProject = async (projectKey) => {
+        if (!jiraToken || !jiraCloudId || !projectKey) return;
+        setIsLoadingEpics(true);
+        try {
+            const jql = `project = "${projectKey}" AND issuetype = Epic ORDER BY created DESC`;
+            const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ jql, maxResults: 150, fields: ["summary"] })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const epics = (data.issues || []).map(iss => ({
+                    value: iss.key,
+                    label: `${iss.fields?.summary || iss.key} (${iss.key})`
+                }));
+                setEpicOptions(epics);
+            }
+        } catch (err) {
+            console.error("Error fetching epics:", err);
+            showToast("Failed to load Epics: " + err.message, 'error');
+        } finally {
+            setIsLoadingEpics(false);
+        }
+    };
+
+    const handleEpicSelect = async (epicKey) => {
+        setSelectedEpicKey(epicKey);
+        setSelectedTaskKey('');
+        setEpicTasksList([]);
+        if (!epicKey || !jiraCloudId) return;
+
+        setIsLoadingTasks(true);
+        showToast("Fetching Tasks for Epic...", 'loading');
+        try {
+            const jql = `(parent = "${epicKey}" OR "Epic Link" = "${epicKey}") AND issuetype in (Task, Story, Standard) ORDER BY created DESC`;
+            const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ jql, maxResults: 100, fields: ["summary", "issuetype"] })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const tasks = (data.issues || []).map(iss => ({
+                    value: iss.key,
+                    label: `${iss.key} - ${iss.fields?.summary || ''}`,
+                    summary: iss.fields?.summary || ''
+                }));
+                setEpicTasksList(tasks);
+
+                const qcBugTask = tasks.find(t => t.summary.toLowerCase().includes('[qc] bugs list') || t.summary.toLowerCase().includes('bugs list'));
+                if (qcBugTask) {
+                    setSelectedTaskKey(qcBugTask.value);
+                    syncSubTaskMetadata(qcBugTask.value);
+                } else if (tasks.length > 0) {
+                    setSelectedTaskKey(tasks[0].value);
+                    syncSubTaskMetadata(tasks[0].value);
+                }
+                hideLoadingToast();
+                showToast("Loaded tasks for Epic successfully!", 'success');
+            }
+        } catch (err) {
+            hideLoadingToast();
+            showToast("Failed to load tasks for epic: " + err.message, 'error');
+        } finally {
+            setIsLoadingTasks(false);
+        }
+    };
 
     useEffect(() => {
         const savedData = localStorage.getItem('last_session_state');
@@ -276,17 +526,20 @@ export default function App() {
                 if (state.linkPreprod) setLinkPreprod(state.linkPreprod);
                 if (Array.isArray(state.scopesList)) setScopesList(state.scopesList);
                 if (state.checkedScopes) setCheckedScopesMap(state.checkedScopes);
-                if (Array.isArray(state.jiraStatusesList)) setJiraStatuses(state.jiraStatusesList);
+                if (Array.isArray(state.jiraStatusesList)) setJiraStatuses(Array.from(new Set(state.jiraStatusesList.map(cleanStatusName))));
                 if (Array.isArray(state.jiraTagsList)) setJiraTagsList(state.jiraTagsList);
                 if (state.checkedJiraTagsMap) setCheckedJiraTagsMap(state.checkedJiraTagsMap);
+                if (Array.isArray(state.jiraPrioritiesList)) setJiraPrioritiesList(state.jiraPrioritiesList);
+                if (state.checkedPrioritiesMap) setCheckedPrioritiesMap(state.checkedPrioritiesMap);
                 if (state.checkedJiraStatuses_B) setCheckedJiraB(state.checkedJiraStatuses_B);
                 if (state.checkedJiraStatuses_Unverified) setCheckedJiraUnverified(state.checkedJiraStatuses_Unverified);
                 if (state.checkedJiraStatuses_Pending) setCheckedJiraPending(state.checkedJiraStatuses_Pending);
                 if (Array.isArray(state.jiraParents)) setJiraParents(state.jiraParents);
-                if (Array.isArray(state.jiraSprints)) setJiraSprints(state.jiraSprints);
                 if (state.selectedParent) setSelectedParent(state.selectedParent);
-                if (state.selectedSprint) setSelectedSprint(state.selectedSprint);
                 if (Array.isArray(state.availableSheetTabs)) setAvailableSheetTabs(state.availableSheetTabs);
+                if (state.selectedEpicKey) setSelectedEpicKey(state.selectedEpicKey);
+                if (state.selectedTaskKey) setSelectedTaskKey(state.selectedTaskKey);
+                if (state.selectedBoardId) setSelectedBoardId(state.selectedBoardId);
             } catch (e) { }
         } else {
             const initMap = {};
@@ -329,10 +582,11 @@ export default function App() {
 
                     setJiraToken(data.access_token);
                     setJiraRefreshToken(data.refresh_token);
-                    setJiraCloudId(data.cloud_id);
                     localStorage.setItem('jira_access_token', data.access_token);
                     localStorage.setItem('jira_refresh_token', data.refresh_token);
-                    localStorage.setItem('jira_cloud_id', data.cloud_id);
+                    
+                    setAuthTrigger(prev => prev + 1);
+                    
                     window.history.replaceState({}, document.title, window.location.pathname);
                     hideLoadingToast();
                     showToast("Connected to Jira SSO successfully!", 'success');
@@ -351,16 +605,19 @@ export default function App() {
             qcNames, testingStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
             scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
-            jiraParents, jiraSprints, selectedParent, selectedSprint,
-            jiraTagsList, checkedJiraTagsMap, availableSheetTabs
+            jiraParents, selectedParent,
+            jiraTagsList, checkedJiraTagsMap, jiraPrioritiesList, checkedPrioritiesMap, availableSheetTabs,
+            selectedEpicKey, selectedTaskKey,
+            selectedBoardId 
         };
         localStorage.setItem('last_session_state', JSON.stringify(config));
     }, [
         sheetName, sheetTabName, dateReport, customReportName, versionGame, dateGame, versionApp, dateApp,
         qcNames, testingStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
         scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
-        jiraParents, jiraSprints, selectedParent, selectedSprint,
-        jiraTagsList, checkedJiraTagsMap, availableSheetTabs
+        jiraParents, selectedParent,
+        jiraTagsList, checkedJiraTagsMap, jiraPrioritiesList, checkedPrioritiesMap, availableSheetTabs,
+        selectedEpicKey, selectedTaskKey
     ]);
 
     useEffect(() => {
@@ -370,16 +627,17 @@ export default function App() {
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
         syncTimeoutRef.current = setTimeout(() => {
             fetchJiraStatuses(key, true);
+            syncEpicsForProject(key);
         }, 700);
 
         return () => {
             if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
         };
-    }, [sheetName]);
+    }, [sheetName, jiraCloudId]);
 
     const initiateJiraSSO = () => {
         const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
-        const scope = encodeURIComponent("read:jira-work read:jira-user read:board-scope:jira-software read:project:jira offline_access");
+        const scope = encodeURIComponent("read:jira-work read:jira-user read:jira-software offline_access");
         const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${ATLASSIAN_CLIENT_ID}&scope=${scope}&redirect_uri=${redirectUri}&response_type=code&prompt=consent`;
         window.location.href = authUrl;
     };
@@ -476,8 +734,17 @@ export default function App() {
         try {
             const keys = projectKeysStr.split(',').map(k => k.trim()).filter(Boolean);
             const statusSet = new Set();
-            const sprintsMap = new Map();
             const parentsMap = new Map();
+
+            try {
+                const prRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/priority`, { headers: { 'Accept': 'application/json' } });
+                if (prRes.ok) {
+                    const prData = await prRes.json();
+                    if (Array.isArray(prData)) {
+                        registerPriorities(prData.map(p => p.name));
+                    }
+                }
+            } catch (e) { }
 
             for (const key of keys) {
                 try {
@@ -486,35 +753,27 @@ export default function App() {
                     if (res.ok) {
                         const data = await res.json();
                         data.forEach(issueType => {
-                            issueType.statuses.forEach(status => {
-                                statusSet.add(status.name.toUpperCase());
+                            issueType.statuses?.forEach(status => {
+                                if (status && status.name) {
+                                    statusSet.add(cleanStatusName(status.name));
+                                }
                             });
                         });
                     }
                 } catch (e) { }
 
-               const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
-                if (bRes.ok) {
-                    const bData = await bRes.json();
-                    if (!bData || !bData.values || bData.values.length === 0) {
-                        throw new Error(`No board found for Project Key: ${key}`);
-                    }
-                    
-                    const fetchedBoards = bData.values.map(b => ({ id: b.id, name: b.name }));
-                    setAvailableBoards(fetchedBoards);
-                    
-                    const initialBoardId = fetchedBoards[0].id;
-                    setSelectedBoardId(initialBoardId);
-
-                    try {
-                        const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${initialBoardId}/sprint`, { headers: { 'Accept': 'application/json' } });
-                        if (sRes.ok) {
-                            const sData = await sRes.json();
-                            sData.values?.forEach(s => sprintsMap.set(s.id, s.name));
+                try {
+                    const bRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board?projectKeyOrId=${key}`, { headers: { 'Accept': 'application/json' } });
+                    if (bRes.ok) {
+                        const bData = await bRes.json();
+                        if (bData && bData.values && bData.values.length > 0) {
+                            const fetchedBoards = bData.values.map(b => ({ id: b.id, name: b.name }));
+                            setAvailableBoards(fetchedBoards);
+                            setSelectedBoardId(fetchedBoards[0].id);
                         }
-                    } catch (e) { }
-                } else {
-                    throw new Error(`Project Key does not exist or access denied: ${key}`);
+                    }
+                } catch (e) {
+                    console.warn("Could not load boards for project:", e);
                 }
 
                 try {
@@ -553,8 +812,13 @@ export default function App() {
                         items.forEach(iss => {
                             const summary = iss.fields?.summary || '';
                             const match = summary.match(/\[([^\]]+)\]/);
-                            if (match) tagSet.add(match[1].trim().toUpperCase());
+                            if (match) {
+                                tagSet.add(match[1].trim().toUpperCase());
+                            } else {
+                                tagSet.add('OTHERS');
+                            }
                         });
+                        
                         if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
                         else jHasMore = false;
                     } else {
@@ -563,60 +827,16 @@ export default function App() {
                 }
 
                 if (tagSet.size > 0) {
-                    let list = Array.from(tagSet).sort();
-                    if (!list.includes('OTHERS')) list = ['OTHERS', ...list]; 
-                    
-                    setJiraTagsList(list);
-                    setCheckedJiraTagsMap(prev => {
-                        const next = { ...prev };
-                        list.forEach(t => { 
-                            if (next[t] === undefined) next[t] = true; 
-                        });
-                        return next;
-                    });
+                    registerTags(Array.from(tagSet));
                 }
             } catch (e) {
-                console.error("Error while loading tabs:", e);
+                console.error("Error while loading tags:", e);
             }
 
             if (statusSet.size > 0) {
-                const list = Array.from(statusSet);
-                setJiraStatuses(list);
-
-                setCheckedJiraB(prev => {
-                    const next = { ...prev };
-                    list.forEach(s => {
-                        if (next[s] === undefined) {
-                            const cleanS = s.replace(/[^A-Z0-9]/g, '');
-                            next[s] = ['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED'].includes(cleanS);
-                        }
-                    });
-                    return next;
-                });
-
-                setCheckedJiraUnverified(prev => {
-                    const next = { ...prev };
-                    list.forEach(s => {
-                        if (next[s] === undefined) {
-                            const cleanS = s.replace(/[^A-Z0-9]/g, '');
-                            next[s] = ['DEPLOYED', 'INTESTING'].includes(cleanS);
-                        }
-                    });
-                    return next;
-                });
-                setCheckedJiraPending(prev => {
-                    const next = { ...prev };
-                    list.forEach(s => {
-                        if (next[s] === undefined) {
-                            const cleanS = s.replace(/[^A-Z0-9]/g, '');
-                            next[s] = ['PENDING', 'WAITFOR', 'WAITING'].some(p => cleanS.includes(p));
-                        }
-                    });
-                    return next;
-                });
+                registerStatusesToFilters(Array.from(statusSet));
             }
 
-            setJiraSprints(Array.from(sprintsMap.entries()).map(([id, name]) => ({ id, name })));
             setJiraParents(Array.from(parentsMap.entries()).map(([key, name]) => ({ key, name })));
 
             if (!isAuto) {
@@ -624,7 +844,6 @@ export default function App() {
                 showToast("Loaded Jira metadata successfully!", 'success');
             }
         } catch (err) {
-            setJiraStatuses([]);
             hideLoadingToast();
             showToast("Auto-sync failed: " + err.message, 'error');
         }
@@ -632,32 +851,11 @@ export default function App() {
 
     const handleLoadStatuses = () => {
         fetchJiraStatuses(sheetName.trim(), false);
-    };
-
-    const handleBoardChange = async (e) => {
-        const newBoardId = e.target.value;
-        setSelectedBoardId(newBoardId);
-        if (!newBoardId || !jiraCloudId) return;
-
-        showToast('Loading sprints for selected board...', 'loading');
-        try {
-            const sRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/agile/1.0/board/${newBoardId}/sprint`, { headers: { 'Accept': 'application/json' } });
-            if (sRes.ok) {
-                const sData = await sRes.json();
-                const sList = sData.values?.map(s => ({ id: s.id, name: s.name })) || [];
-                setJiraSprints(sList);
-                setSelectedSprint('All'); 
-                hideLoadingToast();
-                showToast('Loaded sprints for board!', 'success');
-            }
-        } catch (err) {
-            hideLoadingToast();
-            setJiraSprints([]);
-        }
+        syncEpicsForProject(sheetName.trim());
     };
 
     const toggleAllJiraCategory = (category, selectAll) => {
-        const targetList = jiraStatuses.length > 0 ? jiraStatuses : ['TODO', 'IN PROGRESS', 'FIXEDDONE'];
+        const targetList = jiraStatuses;
         const newMap = {};
         targetList.forEach(s => { newMap[s] = selectAll; });
         if (category === 'B') setCheckedJiraB(newMap);
@@ -669,6 +867,12 @@ export default function App() {
         const newMap = {};
         jiraTagsList.forEach(t => { newMap[t] = selectAll; });
         setCheckedJiraTagsMap(newMap);
+    };
+
+    const toggleAllPriorities = (selectAll) => {
+        const newMap = {};
+        jiraPrioritiesList.forEach(p => { newMap[p] = selectAll; });
+        setCheckedPrioritiesMap(newMap);
     };
 
     const toggleAllScopes = (selectAll) => {
@@ -684,7 +888,7 @@ export default function App() {
         }
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(outputReport)
-                .then(() => showToast("Report compiled successfully.", 'success'))
+                .then(() => showToast("Report copied to clipboard successfully.", 'success'))
                 .catch(() => fallbackCopy(outputReport));
         } else {
             fallbackCopy(outputReport);
@@ -702,7 +906,7 @@ export default function App() {
         textArea.select();
         try {
             document.execCommand('copy');
-            showToast("Report compiled successfully.", 'success');
+            showToast("Report copied to clipboard successfully.", 'success');
         } catch (err) {
             showToast("Failed to copy text.", 'error');
         }
@@ -765,32 +969,20 @@ export default function App() {
         if (!versionGameInput) errors.push("Game Version");
         if (isAppRequired && !versionAppInput) errors.push("App Version");
         if (selectedScopes.length === 0) errors.push("Scope of Testing (at least 1)");
- 
-        if (projectKeysInput.length > 0 && jiraStatuses.length === 0) {
-            errors.push("Sync Failed");
-        }	
+
+        if (activeTabMode === 'hierarchy' && !selectedTaskKey) {
+            errors.push("Target Task / [QC] Bugs List");
+        }
 	
         setFormErrors(errors);
 
         if (errors.length > 0) {
-            if (errors.includes("Sync Failed")) {
-                showToast("Cannot generate: Jira sync failed. Please check the Project Key and try again.", 'error');
-                setFormErrors(prev => [...prev, "Project Key"]); 
-                if (projectKeyRef.current) projectKeyRef.current.focus(); 
-                return;
-            }
-
             showToast("Missing required fields: " + errors.join(', '), 'error');
             if (errors.includes("Project Key") && projectKeyRef.current) projectKeyRef.current.focus();
             else if (errors.includes("QC Team") && qcTeamRef.current) qcTeamRef.current.focus();
             else if (errors.includes("Game Version") && gameVersionRef.current) gameVersionRef.current.focus();
             else if (errors.includes("App Version") && appVersionRef.current) appVersionRef.current.focus();
             else if (errors.includes("Sheet Tab Name") && sheetTabNameRef.current) sheetTabNameRef.current.focus();
-            return;
-        }
-
-        if (jiraStatuses.length === 0) {
-            showToast("Cannot generate report: Jira data is not synced. Please check your Project Key and sync first.", 'error');
             return;
         }
 
@@ -815,9 +1007,8 @@ export default function App() {
 
             showToast('Connecting to Google Sheets...', 'loading');
             let finalReport = '';
-            let sheetTagOrder = [];
             let autoTestcaseLink = '';
-            let groups = {};
+            let rawSheetItems = [];
 
             try {
                 const spreadsheetIdMatch = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -867,13 +1058,12 @@ export default function App() {
                     const driveCheck = await getGameIdFromDriveFolder(autoTestcaseLink, token);
                     if (!driveCheck.accessible) {
                         hideLoadingToast();
-                        alert(`❌ FAILED TO GENERATE:\n\nThe Drive link for the test case is inaccessible (404/403 error). \nPlease grant access (share the link) or check the link again:\n${autoTestcaseLink}`);
+                        alert(`FAILED TO GENERATE:\n\nThe Drive link for the test case is inaccessible (404/403 error).\nPlease grant access or check the link again:\n${autoTestcaseLink}`);
                         return;
                     }
                     if (driveCheck.id) finalGameId = driveCheck.id;
                 }
 
-                let totalItems = 0;
                 let doneHeaderPercent = '0%';
                 let inProgressHeaderPercent = '0%';
                 let remainingHeaderPercent = '0%';
@@ -901,6 +1091,7 @@ export default function App() {
                                 remainingHeaderPercent = nextVal || '0%';
                             }
                         }
+
                         const colA = row[0] ? row[0].toString().trim() : '';
                         const colB = row[1] ? row[1].toString().trim() : '';
                         let colE = row[4] ? row[4].toString().trim() : '';
@@ -908,9 +1099,6 @@ export default function App() {
                         const colH = row[7] ? row[7].toString().trim() : '';
 
                         if (colA && colB && colG) {
-                            const cleanTag = colA.toUpperCase();
-                            if (!sheetTagOrder.includes(cleanTag)) sheetTagOrder.push(cleanTag);
-                            
                             let statusKey = colG.toUpperCase();
                             if (statusKey === 'REMAINING') statusKey = 'REMAINS';
 
@@ -929,25 +1117,20 @@ export default function App() {
                             if (statusKey === 'IN PROGRESS' && colH.toLowerCase().includes('failed')) displayRemaining = 'Failed';
                             if (statusKey === 'DONE' && colH.toLowerCase().includes('warning')) displayRemaining = 'Passed with warning';
                             
-                            if (!groups[statusKey]) groups[statusKey] = [];
-                            groups[statusKey].push({ name: colA, remaining: displayRemaining, originalIndex: totalItems });
-                            totalItems++;
+                            let disp = displayRemaining;
+                            if (statusKey === 'DONE' && disp !== 'Passed with warning') disp = '';
+                            if (statusKey === 'REMAINS') disp = '';
+
+                            rawSheetItems.push({
+                                name: colA,
+                                statusKey: statusKey,
+                                displayValue: disp,
+                                rowOriginalIndex: i
+                            });
                         }
                     }
 
-                    let allItems = [];
-                    const orderList = ['DONE', 'IN PROGRESS', 'REMAINS'];
-                    orderList.forEach(statusKey => {
-                        const groupItems = groups[statusKey] || [];
-                        groupItems.forEach(item => {
-                            let disp = item.remaining;
-                            if (statusKey === 'DONE' && disp !== 'Passed with warning') disp = '';
-                            if (statusKey === 'REMAINS') disp = '';
-                            allItems.push({ ...item, statusKey: statusKey, displayValue: disp });
-                        });
-                    });
-
-                    let normalizedItems = allItems.map(item => {
+                    let normalizedItems = rawSheetItems.map(item => {
                         let lower = item.name.toLowerCase();
                         let finalName = item.name;
                         let prefix = "";
@@ -979,14 +1162,19 @@ export default function App() {
 
                     const valueGroups = {};
                     normalizedItems.forEach(item => {
-                        if (!valueGroups[item.displayValue]) valueGroups[item.displayValue] = [];
-                        valueGroups[item.displayValue].push(item);
+                        const groupKey = `${item.statusKey}___${item.displayValue}`;
+                        if (!valueGroups[groupKey]) valueGroups[groupKey] = [];
+                        valueGroups[groupKey].push(item);
                     });
 
                     let globalMergedLines = [];
                     const prefixes = ['Common Behaviour', 'Compatibility', 'Interruption', 'UAT'];
-                    for (const val in valueGroups) {
-                        let subGroupItems = [...valueGroups[val]];
+
+                    for (const gKey in valueGroups) {
+                        let subGroupItems = [...valueGroups[gKey]];
+                        const currentStatusKey = subGroupItems[0].statusKey;
+                        const currentDisplayValue = subGroupItems[0].displayValue;
+
                         prefixes.forEach(prefix => {
                             let currentPrefixItems = subGroupItems.filter(item => item.name.toLowerCase().startsWith(prefix.toLowerCase()));
                             subGroupItems = subGroupItems.filter(item => !currentPrefixItems.includes(item));
@@ -999,8 +1187,8 @@ export default function App() {
                                 let hasApp = currentPrefixItems.find(i => i.name === "UAT App");
                                 let otherUATs = currentPrefixItems.filter(i => i.name !== "UAT Iframe" && i.name !== "UAT App");
                                 if (hasIframe && hasApp) {
-                                    let minIndex = Math.min(hasIframe.originalIndex, hasApp.originalIndex);
-                                    subGroupItems.push({ name: "UAT Iframe/App", isMergedString: true, mergedVal: val, originalIndex: minIndex, statusKey: hasIframe.statusKey });
+                                    let minIndex = Math.min(hasIframe.rowOriginalIndex, hasApp.rowOriginalIndex);
+                                    subGroupItems.push({ name: "UAT Iframe/App", isMergedString: true, mergedVal: currentDisplayValue, rowOriginalIndex: minIndex, statusKey: currentStatusKey });
                                 } else {
                                     if (hasIframe) subGroupItems.push(hasIframe);
                                     if (hasApp) subGroupItems.push(hasApp);
@@ -1079,8 +1267,8 @@ export default function App() {
                                     }
                                 }
                                 if (mergedName && itemsToMerge.length > 0) {
-                                    let minIndex = Math.min(...itemsToMerge.map(i => i.originalIndex || 9999));
-                                    stage1Items.push({ name: mergedName, isMergedString: true, mergedVal: val, originalIndex: minIndex, statusKey: itemsToMerge[0].statusKey });
+                                    let minIndex = Math.min(...itemsToMerge.map(i => i.rowOriginalIndex || 9999));
+                                    stage1Items.push({ name: mergedName, isMergedString: true, mergedVal: currentDisplayValue, rowOriginalIndex: minIndex, statusKey: currentStatusKey });
                                     stage1Items = stage1Items.concat(pList.filter(p => !itemsToMerge.includes(p.item)).map(p => p.item));
                                 } else {
                                     stage1Items = stage1Items.concat(pList.map(p => p.item));
@@ -1091,39 +1279,43 @@ export default function App() {
                                 let aItem = stage1Items.find(i => i.name === "Common Behaviour App");
                                 if (wItem && aItem) {
                                     stage1Items = stage1Items.filter(i => i !== wItem && i !== aItem);
-                                    stage1Items.push({ name: "Common Behaviour Webapp/App", isMergedString: true, mergedVal: val, originalIndex: Math.min(wItem.originalIndex, aItem.originalIndex), statusKey: wItem.statusKey });
+                                    stage1Items.push({ name: "Common Behaviour Webapp/App", isMergedString: true, mergedVal: currentDisplayValue, rowOriginalIndex: Math.min(wItem.rowOriginalIndex, aItem.rowOriginalIndex), statusKey: currentStatusKey });
                                 }
                             } else if (prefix === "Compatibility") {
                                 let iItem = stage1Items.find(i => i.name === "Compatibility Iframe");
                                 let aItem = stage1Items.find(i => i.name === "Compatibility App");
                                 if (iItem && aItem) {
                                     stage1Items = stage1Items.filter(i => i !== iItem && i !== aItem);
-                                    stage1Items.push({ name: "Compatibility Iframe/App", isMergedString: true, mergedVal: val, originalIndex: Math.min(iItem.originalIndex, aItem.originalIndex), statusKey: iItem.statusKey });
+                                    stage1Items.push({ name: "Compatibility Iframe/App", isMergedString: true, mergedVal: currentDisplayValue, rowOriginalIndex: Math.min(iItem.rowOriginalIndex, aItem.rowOriginalIndex), statusKey: currentStatusKey });
                                 }
                             } else if (prefix === "Interruption") {
                                 let iItem = stage1Items.find(i => i.name === "Interruption Iframe");
                                 let aItem = stage1Items.find(i => i.name === "Interruption App");
                                 if (iItem && aItem) {
                                     stage1Items = stage1Items.filter(i => i !== iItem && i !== aItem);
-                                    stage1Items.push({ name: "Interruption Iframe/App", isMergedString: true, mergedVal: val, originalIndex: Math.min(iItem.originalIndex, aItem.originalIndex), statusKey: iItem.statusKey });
+                                    stage1Items.push({ name: "Interruption Iframe/App", isMergedString: true, mergedVal: currentDisplayValue, rowOriginalIndex: Math.min(iItem.rowOriginalIndex, aItem.rowOriginalIndex), statusKey: currentStatusKey });
                                 }
                             }
                             subGroupItems = subGroupItems.concat(stage1Items);
                         });
+
                         subGroupItems.forEach(item => {
                             let textVal = item.isMergedString ? item.mergedVal : item.displayValue;
                             if (item.statusKey === 'IN PROGRESS' && textVal && textVal.includes('%')) {
                                 textVal = `Remain ${textVal}`;
                             }
                             let lineText = textVal ? `  + ${item.name}: ${textVal}\n` : `  + ${item.name}\n`;
-                            globalMergedLines.push({ text: lineText, index: item.originalIndex || 9999, statusKey: item.statusKey });
+                            globalMergedLines.push({ text: lineText, rowOriginalIndex: item.rowOriginalIndex || 9999, statusKey: item.statusKey });
                         });
                     }
+
                     ['DONE', 'IN PROGRESS', 'REMAINS'].forEach(statusKey => {
                         let groupPercent = statusKey === 'DONE' ? doneHeaderPercent : (statusKey === 'IN PROGRESS' ? inProgressHeaderPercent : remainingHeaderPercent);
                         if (groupPercent !== '0.00%' && groupPercent !== '0%' && groupPercent !== '0.0%' && parseFloat(groupPercent) !== 0) {
                             finalReport += `- ${statusKey}: ${groupPercent}\n`;
-                            let linesForSection = globalMergedLines.filter(l => l.statusKey === statusKey).sort((a, b) => a.index - b.index);
+                            let linesForSection = globalMergedLines
+                                .filter(l => l.statusKey === statusKey)
+                                .sort((a, b) => a.rowOriginalIndex - b.rowOriginalIndex);
                             linesForSection.forEach(l => { finalReport += l.text; });
                         }
                     });
@@ -1131,7 +1323,7 @@ export default function App() {
 
                 if (sheetValidationErrors.length > 0) {
                     hideLoadingToast();
-                    alert(`❌ FAILED TO GENERATE:\n\nThe progress data in the Google Sheet is invalid:\n\n${sheetValidationErrors.join('\n')}\n\nPlease go to the sheet and re-check the failed test cases listed above.`);
+                    alert(`FAILED TO GENERATE:\n\nThe progress data in the Google Sheet is invalid:\n\n${sheetValidationErrors.join('\n')}\n\nPlease check the failed test cases listed above.`);
                     return;
                 }
 
@@ -1165,22 +1357,32 @@ export default function App() {
                     }
                 } catch (e) { }
 
-                let boardId = selectedBoardId;
-                const matchedBoard = availableBoards.find(b => b.id == boardId);
-                if (matchedBoard) {
-                    targetName = matchedBoard.name; 
-                }
+                let finalJql = "";
 
-                let jqlString = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
-                if (selectedParent !== 'All') jqlString += ` AND (parent = "${selectedParent}" OR "Epic Link" = "${selectedParent}")`;
-                if (selectedSprint !== 'All') jqlString += ` AND sprint = ${selectedSprint}`;
-                jqlString += ` ORDER BY created DESC`;
+                if (activeTabMode === 'hierarchy') {
+                    finalJql = `parent = "${selectedTaskKey}" AND issuetype in (Bug, "Bug/Defect", Improvement, Question, Sub-task) ORDER BY created DESC`;
+
+                    if (selectedEpicKey) {
+                        const ep = epicOptions.find(e => e.value === selectedEpicKey);
+                        if (ep) targetName = ep.label.replace(/\s*\([^)]*\)$/, '');
+                    }
+                } else {
+                    let jqlString = `issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
+                    if (selectedParent !== 'All') jqlString += ` AND (parent = "${selectedParent}" OR "Epic Link" = "${selectedParent}")`;
+                    jqlString += ` ORDER BY created DESC`;
+                    finalJql = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND ${jqlString}`;
+                }
 
                 const issueMap = new Map();
                 let jHasMore = true;
                 let currentToken = null;
+
                 while (jHasMore) {
-                    const payload = { jql: jqlString, maxResults: 100, fields: ["summary", "status", "issuetype", "priority"] };
+                    const payload = { 
+                        jql: finalJql, 
+                        maxResults: 100, 
+                        fields: ["summary", "status", "issuetype", "priority"] 
+                    };
                     if (currentToken) payload.nextPageToken = currentToken;
 
                     const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
@@ -1191,42 +1393,50 @@ export default function App() {
 
                     if (!res.ok) {
                         hideLoadingToast();
-                        alert(`❌ FAILED TO GENERATE:\n\nJira link inaccessible (Error code: ${res.status}).\nThe Project Key does not exist, the name was entered incorrectly, or you do not have access to this board.`);
+                        alert(`FAILED TO GENERATE:\n\nJira Query Error (Status: ${res.status}). Please verify your Target Task or Project Key.`);
                         return;
                     }
 
                     const d = await res.json();
                     const items = d.issues || d.values || [];
                     items.forEach(iss => { if (iss && iss.key) issueMap.set(iss.key, iss); });
+                    
                     if (d.nextPageToken && items.length > 0) currentToken = d.nextPageToken;
                     else jHasMore = false;
                 }
+
                 const jiraIssues = Array.from(issueMap.values());
                 detectedBoardName = targetName;
 
                 const currentWorkspace = workspaces.find(ws => ws.id === jiraCloudId);
                 const baseUrl = currentWorkspace ? currentWorkspace.url : `https://enotion.atlassian.net`;
-
                 const pathPrefix = (projectStyle === 'classic') ? '/jira/software/c/projects' : '/jira/software/projects';
 
-                if (boardId) {
-                    autoJiraLink = `${baseUrl}${pathPrefix}/${realKey}/boards/${boardId}`;
-                } else {
-                    autoJiraLink = `${baseUrl}${pathPrefix}/${realKey}/boards`;
+                let finalBoardId = selectedBoardId;
+
+                if (!finalBoardId) {
+                    finalBoardId = await fetchBoardIdByProject(jiraCloudId, realKey, fetchWithJiraAuth);
                 }
+
+                autoJiraLink = finalBoardId 
+                    ? `${baseUrl}${pathPrefix}/${realKey}/boards/${finalBoardId}`
+                    : `${baseUrl}${pathPrefix}/${realKey}/boards`;
 
                 const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
                 let totalBoardTickets = 0;
                 let buildStatusCount = 0;
                 let bugCount = 0, impCount = 0, queCount = 0;
                 let bugPriorityMap = {};
+                
                 jiraIssues.forEach(issue => {
-                    let statusName = (issue.fields.status && issue.fields.status.name) ? issue.fields.status.name.toUpperCase().trim() : '';
+                    let statusName = cleanStatusName(issue.fields.status?.name);
                     if (checkedJiraUnverified[statusName]) { unverifiedCount++; unverifiedStatusesFound.add(statusName); }
                     if (checkedJiraPending[statusName]) { pendingCount++; pendingStatusesFound.add(statusName); }
                     
                     let issueTypeName = (issue.fields.issuetype && issue.fields.issuetype.name) ? issue.fields.issuetype.name.toUpperCase().trim() : '';
-                    if (issueTypeName === 'BUG/DEFECT') issueTypeName = 'BUG';
+                    if (issueTypeName === 'BUG/DEFECT' || issueTypeName === 'SUB-TASK') {
+                        issueTypeName = 'BUG';
+                    }
 
                     totalBoardTickets++;
                     if (typeContainers[issueTypeName] === undefined) return;
@@ -1235,8 +1445,9 @@ export default function App() {
                         if (checkedJiraB[statusName]) isValidStatus = true;
                     } else {
                         const statusClean = statusName.replace(/[^A-Z0-9]/g, '');
-                        if (['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE'].includes(statusClean)) isValidStatus = true;
+                        if (['TODO', 'INPROGRESS', 'FIXEDDONE', 'FIXDONE', 'RESOLVED', 'CLOSED'].includes(statusClean)) isValidStatus = true;
                     }
+
                     if (isValidStatus) {
                         const summary = issue.fields.summary || '';
                         const bracketMatch = summary.match(/\[([^\]]+)\]/);
@@ -1246,9 +1457,14 @@ export default function App() {
                             return; 
                         }
 
-                        buildStatusCount++;
                         let pName = (issue.fields.priority && issue.fields.priority.name) ? issue.fields.priority.name.trim() : 'Unknown';
                         pName = pName.charAt(0).toUpperCase() + pName.slice(1).toLowerCase();
+
+                        if (jiraPrioritiesList.length > 0 && checkedPrioritiesMap[pName] === false) {
+                            return;
+                        }
+
+                        buildStatusCount++;
                         if (issueTypeName === 'BUG') {
                             bugCount++;
                             if (!bugPriorityMap[pName]) bugPriorityMap[pName] = 0;
@@ -1262,18 +1478,26 @@ export default function App() {
                     }
                 });
                 
+                const effectivePrioritiesOrder = jiraPrioritiesList.length > 0 ? jiraPrioritiesList : Object.keys(bugPriorityMap);
+
                 let buildStatusParts = [];
                 if (bugCount > 0) {
-                    PRIORITY_ORDER.forEach(pr => { if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); });
-                    for (const pr in bugPriorityMap) { if (!PRIORITY_ORDER.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); }
+                    effectivePrioritiesOrder.forEach(pr => { 
+                        if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); 
+                    });
+                    for (const pr in bugPriorityMap) { 
+                        if (!effectivePrioritiesOrder.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); 
+                    }
                 }
                 if (impCount > 0) buildStatusParts.push(`Improvement: ${impCount}`);
                 if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
                 
-                let calculatedTicketStr = buildStatusCount + " tickets" + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
+                let buildNoun = buildStatusCount === 1 ? 'ticket' : 'tickets';
+                let totalNoun = totalBoardTickets === 1 ? 'ticket' : 'tickets';
+                let calculatedTicketStr = `${buildStatusCount} ${buildNoun}` + (buildStatusParts.length > 0 ? " (" + buildStatusParts.join(', ') + ")" : "");
 
                 let scopeText = selectedScopes.join(', ') || 'Logic UI, Interruption, Promotion, Sound, UI, Tutorial/Trial, Compatibility';
-                let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${calculatedTicketStr} / Total: ${totalBoardTickets} tickets\n`;
+                let summarySection = `\`\`\`\n——————————————————\nA. [SUMMARY]\n- Scope of testing: ${scopeText}.\n- Testing Status: ${testingStatus || 'In-testing'}\n- Build status: ${calculatedTicketStr} / Total: ${totalBoardTickets} ${totalNoun}\n`;
                 finalReport = summarySection + finalReport;
                 const romanize = (num) => {
                     const lookup = { M: 1000, CM: 900, d: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1 };
@@ -1300,13 +1524,17 @@ export default function App() {
                                         const tickets = typeContainers['BUG'][tag][priority];
                                         jiraBody += `- ${priority}: ${tickets.length}\n`;
                                         
-                                        if (buildStatusCount <= 5 || priority === 'High' || priority === 'Highest') {
+                                        const isHighPriority = priority.toLowerCase().includes('high');
+                                        if (buildStatusCount <= 5 || isHighPriority) {
                                             tickets.forEach(t => { jiraBody += `    + ${t.key} - ${t.summary}\n`; });
                                         }
                                     }
                                 };
-                                PRIORITY_ORDER.forEach(printPriority);
-                                for (const pr in typeContainers['BUG'][tag]) { if (!PRIORITY_ORDER.includes(pr)) printPriority(pr); }
+
+                                effectivePrioritiesOrder.forEach(printPriority);
+                                for (const pr in typeContainers['BUG'][tag]) { 
+                                    if (!effectivePrioritiesOrder.includes(pr)) printPriority(pr); 
+                                }
                                 jiraBody += "——————————————————\n";
                                 sectionIndex++;
                             });
@@ -1314,7 +1542,6 @@ export default function App() {
                     } else {
                         let hasTickets = false;
                         const priorityMapForType = {}; 
-                        let totalInType = 0;
                         
                         for (const tag in typeContainers[typeKey]) {
                             for (const priority in typeContainers[typeKey][tag]) {
@@ -1323,7 +1550,6 @@ export default function App() {
                                     hasTickets = true;
                                     if (!priorityMapForType[priority]) priorityMapForType[priority] = [];
                                     priorityMapForType[priority] = priorityMapForType[priority].concat(tix);
-                                    totalInType += tix.length;
                                 }
                             }
                         }
@@ -1334,13 +1560,17 @@ export default function App() {
                                     const tickets = priorityMapForType[priority];
                                     jiraBody += `- ${priority}: ${tickets.length}\n`;
                                     
-                                    if (buildStatusCount <= 5 || priority === 'High' || priority === 'Highest') {
+                                    const isHighPriority = priority.toLowerCase().includes('high');
+                                    if (buildStatusCount <= 5 || isHighPriority) {
                                         tickets.forEach(t => { jiraBody += `    + ${t.key} - ${t.summary}\n`; });
                                     }
                                 }
                             };
-                            PRIORITY_ORDER.forEach(printPriority);
-                            for (const pr in priorityMapForType) { if (!PRIORITY_ORDER.includes(pr)) printPriority(pr); }
+
+                            effectivePrioritiesOrder.forEach(printPriority);
+                            for (const pr in priorityMapForType) { 
+                                if (!effectivePrioritiesOrder.includes(pr)) printPriority(pr); 
+                            }
                             jiraBody += "——————————————————\n";
                             sectionIndex++;
                         }
@@ -1401,7 +1631,7 @@ export default function App() {
             }
 
             if (chkPreprod) {
-                const preprodLines = preprodInputValue.split('\n').map(l => l.trim()).filter(l => l !== "");
+                const preprodLines = preprodInputValue?.split('\n').map(l => l.trim()).filter(l => l !== "") || [];
                 if (preprodLines.length > 0) {
                     let firstLineClean = preprodLines[0].toLowerCase().replace(/^-\s*/, '');
                     if (firstLineClean.startsWith("preprod")) {
@@ -1488,11 +1718,16 @@ export default function App() {
         }
     };
 
-    const statusPillList = jiraStatuses.length > 0 ? jiraStatuses : ['TODO', 'IN PROGRESS', 'FIXEDDONE'];
+    const statusPillList = Array.from(new Set(jiraStatuses.map(cleanStatusName)));
+
+    const handleSwitchMode = (mode) => {
+        setActiveTabMode(mode);
+        localStorage.setItem('qc_tool_mode', mode);
+    };
 
     return (
         <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 pb-36">
-            <header className="w-full mb-8 flex justify-between items-center">
+            <header className="w-full mb-6 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shadow-sm">
                         <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -1502,8 +1737,26 @@ export default function App() {
                         <p className="text-xs text-slate-500 font-medium">Internal Report Generator</p>
                     </div>
                 </div>
+
+                <div className="bg-slate-200/80 p-1 rounded-2xl flex items-center gap-1 shadow-inner border border-slate-300">
+                    <button
+                        type="button"
+                        onClick={() => handleSwitchMode('classic')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTabMode === 'classic' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                        Standard Flow (Old Board)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleSwitchMode('hierarchy')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTabMode === 'hierarchy' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Hierarchical Flow (New Board)
+                    </button>
+                </div>
+
                 <div className="flex items-center gap-4">
-                    
                     {workspaces.length > 0 && jiraToken && (
                         <div className="flex items-center gap-2">
                             <label className="text-xs font-semibold text-slate-600">Workspace:</label>
@@ -1513,6 +1766,15 @@ export default function App() {
                                     const newCloudId = e.target.value;
                                     setJiraCloudId(newCloudId);
                                     localStorage.setItem('jira_cloud_id', newCloudId);
+                                    setAvailableProjects([]);
+                                    setEpicOptions([]);
+                                    setEpicTasksList([]);
+                                    setSelectedEpicKey('');
+                                    setSelectedTaskKey('');
+                                    setJiraStatuses([]);
+                                    setJiraPrioritiesList([]);
+                                    setJiraTagsList([]);
+                                    setAuthTrigger(prev => prev + 1);
                                     showToast("Switched Jira Workspace", 'success');
                                 }}
                                 className="h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600 shadow-sm"
@@ -1547,13 +1809,18 @@ export default function App() {
             <main className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-                    <h2 className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                        <span>Project Details</span>
+                    <h2 className="text-sm font-bold text-slate-800 tracking-wide flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                            <span>{activeTabMode === 'hierarchy' ? "Board & Epic/Task Tree" : "Project Details"}</span>
+                        </div>
+                        {activeTabMode === 'hierarchy' && (
+                            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-md">Tree Mode</span>
+                        )}
                     </h2>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-600">Project Key(s)</label>
+                        <label className="text-xs font-semibold text-slate-600">1. Project Key (Board Project)</label>
                         <div className="flex gap-2">
                             <div className="flex-1">
                                 <SearchableDropdown 
@@ -1564,7 +1831,7 @@ export default function App() {
                                         setSheetName(val);
                                         setFormErrors(prev => prev.filter(err => err !== "Project Key"));
                                     }} 
-                                    placeholder="Select Project..."
+                                    placeholder="Select Project Key (e.g. STR)..."
                                     isError={formErrors.includes("Project Key")}
                                 />
                             </div>
@@ -1573,37 +1840,62 @@ export default function App() {
                             </button>
                         </div>
                     </div>
-                    {availableBoards.length > 0 && (
-                        <div className="flex flex-col gap-1.5 mt-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                            <label className="text-xs font-bold text-indigo-700">Select Specific Board (Studio/Game)</label>
-                            <select 
-                                value={selectedBoardId} 
-                                onChange={handleBoardChange} 
-                                className="h-10 px-3 bg-white border border-indigo-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-600 shadow-sm"
-                            >
-                                {availableBoards.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                            </select>
+
+                    {activeTabMode === 'hierarchy' ? (
+                        <div className="flex flex-col gap-3 p-3 bg-indigo-50/40 rounded-xl border border-indigo-100">
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs font-bold text-indigo-900">2. Select Epic (Game)</label>
+                                    {isLoadingEpics && <span className="text-[10px] text-indigo-600 animate-pulse font-medium">Syncing Epics...</span>}
+                                </div>
+                                <SearchableDropdown
+                                    options={epicOptions}
+                                    value={selectedEpicKey}
+                                    onChange={handleEpicSelect}
+                                    placeholder={isLoadingEpics ? "Syncing Epics..." : "Select Epic..."}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs font-bold text-indigo-900">3. Target Task ([QC] Bugs List)</label>
+                                    {isLoadingTasks && <span className="text-[10px] text-indigo-600 animate-pulse font-medium">Loading Tasks...</span>}
+                                </div>
+                                <SearchableDropdown
+                                    options={epicTasksList}
+                                    value={selectedTaskKey}
+                                    onChange={val => {
+                                        setSelectedTaskKey(val);
+                                        syncSubTaskMetadata(val);
+                                    }}
+                                    placeholder={isLoadingTasks ? "Loading tasks..." : "Select Task (Default [QC] Bugs List)..."}
+                                    isError={formErrors.includes("Target Task / [QC] Bugs List")}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            {availableBoards.length > 0 && (
+                                <div className="flex flex-col gap-1.5 bg-indigo-50/40 p-3 rounded-xl border border-indigo-100">
+                                    <label className="text-xs font-bold text-indigo-900">Select Board</label>
+                                    <SearchableDropdown
+                                        options={availableBoards.map(b => ({ value: b.id, label: b.name }))}
+                                        value={selectedBoardId}
+                                        onChange={val => setSelectedBoardId(val)}
+                                        placeholder="Select a board..."
+                                    />
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold text-slate-600">Epic Filter</label>
+                                <select value={selectedParent} onChange={e => setSelectedParent(e.target.value)} className="h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600">
+                                    <option value="All">Default</option>
+                                    {jiraParents.map(p => <option key={p.key} value={p.key}>{p.name} ({p.key})</option>)}
+                                </select>
+                            </div>
                         </div>
                     )}
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-600">Sprint Filter</label>
-                            <select value={selectedSprint} onChange={e => setSelectedSprint(e.target.value)} className="h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600">
-                                <option value="All">Default</option>
-                                {jiraSprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-semibold text-slate-600">Epic Filter</label>
-                            <select value={selectedParent} onChange={e => setSelectedParent(e.target.value)} className="h-10 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-600">
-                                <option value="All">Default</option>
-                                {jiraParents.map(p => <option key={p.key} value={p.key}>{p.name} ({p.key})</option>)}
-                            </select>
-                        </div>
-                    </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
@@ -1670,66 +1962,74 @@ export default function App() {
                         </button>
 
                         {isAccordionOpen && (
-                            <div className="p-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50">
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count</span>
-                                        <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraCategory('B', true)} className="text-indigo-600 hover:underline font-bold">All</button>
-                                            <span className="text-slate-300">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraCategory('B', false)} className="text-slate-500 hover:underline">None</button>
-                                        </div>
+                            <div className="p-3 border-t border-slate-200 bg-slate-50">
+                                {statusPillList.length === 0 ? (
+                                    <div className="p-4 text-center text-xs text-slate-400 italic">
+                                        No status available. Please select a Project Key and click <strong>↻ Sync</strong>.
                                     </div>
-                                    {statusPillList.map(s => { 
-                                        const isChecked = !!checkedJiraB[s];
-                                        return (
-                                            <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
-                                                <span className="text-[10px] font-semibold truncate">{s}</span>
-                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Count</span>
+                                                <div className="flex gap-1 text-[9px]">
+                                                    <button type="button" onClick={() => toggleAllJiraCategory('B', true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button type="button" onClick={() => toggleAllJiraCategory('B', false)} className="text-slate-500 hover:underline">None</button>
+                                                </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                            {statusPillList.map(s => { 
+                                                const isChecked = !!checkedJiraB[s];
+                                                return (
+                                                    <div key={s} onClick={() => setCheckedJiraB(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                        <span className="text-[10px] font-semibold truncate">{s}</span>
+                                                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
 
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Unverified</span>
-                                        <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Unverified', true)} className="text-amber-600 hover:underline font-bold">All</button>
-                                            <span className="text-slate-300">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Unverified', false)} className="text-slate-500 hover:underline">None</button>
-                                        </div>
-                                    </div>
-                                    {statusPillList.map(s => {
-                                        const isChecked = !!checkedJiraUnverified[s];
-                                        return (
-                                            <div key={s} onClick={() => setCheckedJiraUnverified(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-600'}`}>
-                                                <span className="text-[10px] font-semibold truncate">{s}</span>
-                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Unverified</span>
+                                                <div className="flex gap-1 text-[9px]">
+                                                    <button type="button" onClick={() => toggleAllJiraCategory('Unverified', true)} className="text-amber-600 hover:underline font-bold">All</button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button type="button" onClick={() => toggleAllJiraCategory('Unverified', false)} className="text-slate-500 hover:underline">None</button>
+                                                </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                            {statusPillList.map(s => {
+                                                const isChecked = !!checkedJiraUnverified[s];
+                                                return (
+                                                    <div key={s} onClick={() => setCheckedJiraUnverified(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                        <span className="text-[10px] font-semibold truncate">{s}</span>
+                                                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
 
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Pending</span>
-                                        <div className="flex gap-1 text-[9px]">
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Pending', true)} className="text-indigo-600 hover:underline font-bold">All</button>
-                                            <span className="text-slate-300">|</span>
-                                            <button type="button" onClick={() => toggleAllJiraCategory('Pending', false)} className="text-slate-500 hover:underline">None</button>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Pending</span>
+                                                <div className="flex gap-1 text-[9px]">
+                                                    <button type="button" onClick={() => toggleAllJiraCategory('Pending', true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                                    <span className="text-slate-300">|</span>
+                                                    <button type="button" onClick={() => toggleAllJiraCategory('Pending', false)} className="text-slate-500 hover:underline">None</button>
+                                                </div>
+                                            </div>
+                                            {statusPillList.map(s => {
+                                                const isChecked = !!checkedJiraPending[s];
+                                                return (
+                                                    <div key={s} onClick={() => setCheckedJiraPending(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                        <span className="text-[10px] font-semibold truncate">{s}</span>
+                                                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
-                                    {statusPillList.map(s => {
-                                        const isChecked = !!checkedJiraPending[s];
-                                        return (
-                                            <div key={s} onClick={() => setCheckedJiraPending(p => ({ ...p, [s]: !isChecked }))} className={`px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
-                                                <span className="text-[10px] font-semibold truncate">{s}</span>
-                                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1864,7 +2164,7 @@ export default function App() {
                         <button type="button" onClick={handleAddScope} className="px-3 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-300 transition-all">+ Add</button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 max-h-[420px] overflow-y-auto pr-1">
+                    <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
                         {scopesList.map(scope => {
                             const isChecked = !!checkedScopesMap[scope];
                             return (
@@ -1880,8 +2180,42 @@ export default function App() {
                             );
                         })}
                     </div>
+
+                    {jiraPrioritiesList.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
+                            <button type="button" onClick={() => setIsPriorityAccordionOpen(!isPriorityAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
+                                <span>Filter Priorities (Workspace)</span>
+                                <span className="text-slate-400">{isPriorityAccordionOpen ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isPriorityAccordionOpen && (
+                                <div className="p-3 border-t border-slate-200 bg-slate-50">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Select Priorities to Include</span>
+                                        <div className="flex gap-1 text-[9px]">
+                                            <button type="button" onClick={() => toggleAllPriorities(true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllPriorities(false)} className="text-slate-500 hover:underline">None</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
+                                        {jiraPrioritiesList.map(priority => {
+                                            const isChecked = !!checkedPrioritiesMap[priority];
+                                            return (
+                                                <div key={priority} onClick={() => setCheckedPrioritiesMap(p => ({ ...p, [priority]: !isChecked }))} className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    <span className="text-[10px] font-semibold">{priority}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {jiraTagsList.length > 0 && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-3">
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
                             <button type="button" onClick={() => setIsTagAccordionOpen(!isTagAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
                                 <span>Filter Tags [Type]</span>
                                 <span className="text-slate-400">{isTagAccordionOpen ? '▲' : '▼'}</span>
@@ -1897,7 +2231,7 @@ export default function App() {
                                             <button type="button" onClick={() => toggleAllJiraTags(false)} className="text-slate-500 hover:underline">None</button>
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
                                         {jiraTagsList.map(tag => {
                                             const isChecked = !!checkedJiraTagsMap[tag];
                                             return (
@@ -1916,49 +2250,49 @@ export default function App() {
 
             </main>
 
-<div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-    <div className="bg-white/90 backdrop-blur-md border border-slate-200 text-slate-900 rounded-2xl p-2 shadow-2xl flex items-center justify-center gap-2">
-        <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="w-32 h-9 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap"
-        >
-            {isGenerating ? (
-                <>
-                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Generating...</span>
-                </>
-            ) : (
-                <span>Generate</span>
-            )}
-        </button>
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+                <div className="bg-white/90 backdrop-blur-md border border-slate-200 text-slate-900 rounded-2xl p-2 shadow-2xl flex items-center justify-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        className="w-32 h-9 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    >
+                        {isGenerating ? (
+                            <>
+                                <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>Generating...</span>
+                            </>
+                        ) : (
+                            <span>Generate</span>
+                        )}
+                    </button>
 
-        <button
-            type="button"
-            onClick={() => setIsPreviewOpen(true)}
-            disabled={!outputReport}
-            className="w-32 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-all disabled:opacity-40 flex items-center justify-center whitespace-nowrap"
-        >
-            Preview
-        </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsPreviewOpen(true)}
+                        disabled={!outputReport}
+                        className="w-32 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-all disabled:opacity-40 flex items-center justify-center whitespace-nowrap"
+                    >
+                        Preview
+                    </button>
 
-        <button
-            type="button"
-            onClick={executeCopy}
-            disabled={!outputReport}
-            className="w-32 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 whitespace-nowrap"
-        >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-            </svg>
-            <span>Copy</span>
-        </button>
-    </div>
-</div>
+                    <button
+                        type="button"
+                        onClick={executeCopy}
+                        disabled={!outputReport}
+                        className="w-32 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                        <span>Copy</span>
+                    </button>
+                </div>
+            </div>
 
             {isPreviewOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
