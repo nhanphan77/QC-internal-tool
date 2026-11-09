@@ -1110,6 +1110,11 @@ export default function App() {
                             let statusKey = colG.toUpperCase();
                             if (statusKey === 'REMAINING') statusKey = 'REMAINS';
 
+                            let isStatusFailed = colG.toLowerCase().includes('fail');
+                            if (isStatusFailed) {
+                                statusKey = 'IN PROGRESS'; 
+                            }
+
                             if (colE && !colE.includes('%') && !isNaN(colE)) colE = ((parseFloat(colE) * 100).toFixed(2) + '%').replace('.00%', '%');
                             else if (!colE) colE = '0%';
                             else colE = colE.replace('.00%', '%');
@@ -1122,7 +1127,10 @@ export default function App() {
                             }
                             
                             let displayRemaining = colE;
-                            if (statusKey === 'IN PROGRESS' && colH.toLowerCase().includes('failed')) displayRemaining = 'Failed';
+                            
+                            if ((statusKey === 'IN PROGRESS' && colH.toLowerCase().includes('failed')) || isStatusFailed) {
+                                displayRemaining = 'Failed';
+                            }
                             if (statusKey === 'DONE' && colH.toLowerCase().includes('warning')) displayRemaining = 'Passed with warning';
                             
                             let disp = displayRemaining;
@@ -1132,7 +1140,7 @@ export default function App() {
                             rawSheetItems.push({
                                 name: colA,
                                 statusKey: statusKey,
-                                displayValue: disp,
+                                displayValue: disp, 
                                 rowOriginalIndex: i
                             });
                         }
