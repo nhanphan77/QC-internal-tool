@@ -159,6 +159,11 @@ export default function App() {
     const [checkedJiraB, setCheckedJiraB] = useState({});
     const [checkedJiraUnverified, setCheckedJiraUnverified] = useState({});
     const [checkedJiraPending, setCheckedJiraPending] = useState({});
+    
+    // Dynamic Issue Types
+    const [jiraIssueTypesList, setJiraIssueTypesList] = useState([]);
+    const [checkedIssueTypesMap, setCheckedIssueTypesMap] = useState({});
+    const [isIssueTypeAccordionOpen, setIsIssueTypeAccordionOpen] = useState(true);
 
     const [jiraTagsList, setJiraTagsList] = useState([]);
     const [checkedJiraTagsMap, setCheckedJiraTagsMap] = useState({});
@@ -227,6 +232,8 @@ export default function App() {
         setCheckedJiraB({});
         setCheckedJiraUnverified({});
         setCheckedJiraPending({});
+        setJiraIssueTypesList([]);
+        setCheckedIssueTypesMap({});
         setJiraPrioritiesList([]);
         setCheckedPrioritiesMap({});
         setJiraTagsList([]);
@@ -302,6 +309,24 @@ export default function App() {
             setAvailableProjects([]);
         }
     }, [jiraCloudId, authTrigger]);
+    
+    const registerIssueTypes = (newTypes) => {
+        if (!newTypes || newTypes.length === 0) return;
+        const formatted = Array.from(new Set(newTypes.map(t => t.trim()).filter(Boolean)));
+        
+        setJiraIssueTypesList(prev => Array.from(new Set([...prev, ...formatted])).sort());
+
+        setCheckedIssueTypesMap(prev => {
+            const next = { ...prev };
+            formatted.forEach(t => {
+                if (next[t] === undefined) {
+                    // Default ticks common types
+                    next[t] = ['Bug', 'Bug/Defect', 'Improvement', 'Question', 'Sub-task'].includes(t);
+                }
+            });
+            return next;
+        });
+    };
 
     const registerPriorities = (newPriorities) => {
         if (!newPriorities || newPriorities.length === 0) return;
@@ -387,7 +412,7 @@ export default function App() {
             const payload = {
                 jql: `parent = "${taskKey}"`,
                 maxResults: 150,
-                fields: ["status", "summary", "priority"]
+                fields: ["status", "summary", "priority", "issuetype"]
             };
             const res = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/3/search/jql`, {
                 method: 'POST',
@@ -407,6 +432,14 @@ export default function App() {
                 const foundPriorities = items.map(iss => iss.fields?.priority?.name).filter(Boolean);
                 if (foundPriorities.length > 0) {
                     registerPriorities(foundPriorities);
+                }
+                
+                const foundTypes = new Set();
+                items.forEach(iss => {
+                    if (iss.fields?.issuetype?.name) foundTypes.add(iss.fields.issuetype.name);
+                });
+                if (foundTypes.size > 0) {
+                    registerIssueTypes(Array.from(foundTypes));
                 }
 
                 const foundTags = new Set();
@@ -527,6 +560,10 @@ export default function App() {
                 if (state.linkPreprod) setLinkPreprod(state.linkPreprod);
                 if (Array.isArray(state.scopesList)) setScopesList(state.scopesList);
                 if (state.checkedScopes) setCheckedScopesMap(state.checkedScopes);
+                
+                if (Array.isArray(state.jiraIssueTypesList)) setJiraIssueTypesList(state.jiraIssueTypesList);
+                if (state.checkedIssueTypesMap) setCheckedIssueTypesMap(state.checkedIssueTypesMap);
+
                 if (Array.isArray(state.jiraStatusesList)) setJiraStatuses(Array.from(new Set(state.jiraStatusesList.map(cleanStatusName))));
                 if (Array.isArray(state.jiraTagsList)) setJiraTagsList(state.jiraTagsList);
                 if (state.checkedJiraTagsMap) setCheckedJiraTagsMap(state.checkedJiraTagsMap);
@@ -604,7 +641,9 @@ export default function App() {
         const config = {
             sheetName, sheetTabName, dateReport, customReportName, versionGame, dateGame, versionApp, dateApp,
             qcNames, testingStatus, chkCustomNote, customNotes: customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
-            scopesList, checkedScopes: checkedScopesMap, jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
+            scopesList, checkedScopes: checkedScopesMap, 
+            jiraIssueTypesList, checkedIssueTypesMap,
+            jiraStatusesList: jiraStatuses, checkedJiraStatuses_B: checkedJiraB,
             checkedJiraStatuses_Unverified: checkedJiraUnverified, checkedJiraStatuses_Pending: checkedJiraPending,
             jiraParents, selectedParent,
             jiraTagsList, checkedJiraTagsMap, jiraPrioritiesList, checkedPrioritiesMap, availableSheetTabs,
@@ -615,7 +654,7 @@ export default function App() {
     }, [
         sheetName, sheetTabName, dateReport, customReportName, versionGame, dateGame, versionApp, dateApp,
         qcNames, testingStatus, chkCustomNote, customNotesData, chkCustomIframe, customIframesData, chkWebapp, chkApptek, chkPreprod, linkShared, linkPreprod,
-        scopesList, checkedScopesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
+        scopesList, checkedScopesMap, jiraIssueTypesList, checkedIssueTypesMap, jiraStatuses, checkedJiraB, checkedJiraUnverified, checkedJiraPending,
         jiraParents, selectedParent,
         jiraTagsList, checkedJiraTagsMap, jiraPrioritiesList, checkedPrioritiesMap, availableSheetTabs,
         selectedEpicKey, selectedTaskKey, selectedBoardId
@@ -736,6 +775,7 @@ export default function App() {
             const keys = projectKeysStr.split(',').map(k => k.trim()).filter(Boolean);
             const statusSet = new Set();
             const parentsMap = new Map();
+            const issueTypeSet = new Set();
 
             try {
                 const prRes = await fetchWithJiraAuth(`https://api.atlassian.com/ex/jira/${jiraCloudId}/rest/api/2/priority`, { headers: { 'Accept': 'application/json' } });
@@ -754,6 +794,9 @@ export default function App() {
                     if (res.ok) {
                         const data = await res.json();
                         data.forEach(issueType => {
+                            if (issueType.name) {
+                                issueTypeSet.add(issueType.name);
+                            }
                             issueType.statuses?.forEach(status => {
                                 if (status && status.name) {
                                     statusSet.add(cleanStatusName(status.name));
@@ -795,7 +838,13 @@ export default function App() {
                 let jHasMore = true;
                 let currentToken = null;
                 const keysStr = keys.map(k => `"${k}"`).join(',');
-                const tagJql = `project in (${keysStr}) AND issuetype in (Bug, "Bug/Defect", Improvement, Question) ORDER BY created DESC`;
+                
+                const activeTypes = Object.keys(checkedIssueTypesMap).filter(k => checkedIssueTypesMap[k]);
+                let typeClause = activeTypes.length > 0 
+                    ? `issuetype in (${activeTypes.map(t => `"${t}"`).join(',')})`
+                    : `issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
+                
+                const tagJql = `project in (${keysStr}) AND ${typeClause} ORDER BY created DESC`;
                 
                 while (jHasMore) {
                     const payload = { jql: tagJql, maxResults: 100, fields: ["summary"] };
@@ -834,6 +883,10 @@ export default function App() {
                 console.error("Error while loading tags:", e);
             }
 
+            if (issueTypeSet.size > 0) {
+                registerIssueTypes(Array.from(issueTypeSet));
+            }
+
             if (statusSet.size > 0) {
                 registerStatusesToFilters(Array.from(statusSet));
             }
@@ -853,6 +906,12 @@ export default function App() {
     const handleLoadStatuses = () => {
         fetchJiraStatuses(sheetName.trim(), false);
         syncEpicsForProject(sheetName.trim());
+    };
+
+    const toggleAllIssueTypes = (selectAll) => {
+        const newMap = {};
+        jiraIssueTypesList.forEach(t => { newMap[t] = selectAll; });
+        setCheckedIssueTypesMap(newMap);
     };
 
     const toggleAllJiraCategory = (category, selectAll) => {
@@ -1373,17 +1432,22 @@ export default function App() {
                     }
                 } catch (e) { }
 
+                const activeTypes = jiraIssueTypesList.filter(t => checkedIssueTypesMap[t]);
+                let typeClause = activeTypes.length > 0 
+                    ? `issuetype in (${activeTypes.map(t => `"${t}"`).join(',')})`
+                    : `issuetype in (Bug, "Bug/Defect", Improvement, Question, Sub-task)`;
+                
                 let finalJql = "";
 
                 if (activeTabMode === 'hierarchy') {
-                    finalJql = `parent = "${selectedTaskKey}" AND issuetype in (Bug, "Bug/Defect", Improvement, Question, Sub-task) ORDER BY created DESC`;
+                    finalJql = `parent = "${selectedTaskKey}" AND ${typeClause} ORDER BY created DESC`;
 
                     if (selectedEpicKey) {
                         const ep = epicOptions.find(e => e.value === selectedEpicKey);
                         if (ep) targetName = ep.label.replace(/\s*\([^)]*\)$/, '');
                     }
                 } else {
-                    let jqlString = `issuetype in (Bug, "Bug/Defect", Improvement, Question)`;
+                    let jqlString = `${typeClause}`;
                     if (selectedParent !== 'All') jqlString += ` AND (parent = "${selectedParent}" OR "Epic Link" = "${selectedParent}")`;
                     jqlString += ` ORDER BY created DESC`;
                     finalJql = `project in (${projectKeysInput.map(k => `"${k}"`).join(',')}) AND ${jqlString}`;
@@ -1438,24 +1502,27 @@ export default function App() {
                     ? `${baseUrl}${pathPrefix}/${realKey}/boards/${finalBoardId}`
                     : `${baseUrl}${pathPrefix}/${realKey}/boards`;
 
-                const typeContainers = { 'BUG': {}, 'IMPROVEMENT': {}, 'QUESTION': {} };
+                const typeContainers = {};
                 let totalBoardTickets = 0;
                 let buildStatusCount = 0;
-                let bugCount = 0, impCount = 0, queCount = 0;
-                let bugPriorityMap = {};
+                let issueTypeCounts = {};
+                let issueTypePriorityMap = {};
                 
                 jiraIssues.forEach(issue => {
                     let statusName = cleanStatusName(issue.fields.status?.name);
                     if (checkedJiraUnverified[statusName]) { unverifiedCount++; unverifiedStatusesFound.add(statusName); }
                     if (checkedJiraPending[statusName]) { pendingCount++; pendingStatusesFound.add(statusName); }
                     
-                    let issueTypeName = (issue.fields.issuetype && issue.fields.issuetype.name) ? issue.fields.issuetype.name.toUpperCase().trim() : '';
-                    if (issueTypeName === 'BUG/DEFECT' || issueTypeName === 'SUB-TASK') {
-                        issueTypeName = 'BUG';
+                    let issueTypeNameRaw = (issue.fields.issuetype && issue.fields.issuetype.name) ? issue.fields.issuetype.name.trim() : 'Unknown';
+                    let issueTypeName = issueTypeNameRaw.toUpperCase();
+
+                    // Check if User UnTicked it in dynamic list UI
+                    if (jiraIssueTypesList.length > 0 && checkedIssueTypesMap[issueTypeNameRaw] === false) {
+                        return;
                     }
 
                     totalBoardTickets++;
-                    if (typeContainers[issueTypeName] === undefined) return;
+                    
                     let isValidStatus = false;
                     if (jiraStatuses.length > 0) {
                         if (checkedJiraB[statusName]) isValidStatus = true;
@@ -1481,32 +1548,43 @@ export default function App() {
                         }
 
                         buildStatusCount++;
-                        if (issueTypeName === 'BUG') {
-                            bugCount++;
-                            if (!bugPriorityMap[pName]) bugPriorityMap[pName] = 0;
-                            bugPriorityMap[pName]++;
-                        } else if (issueTypeName === 'IMPROVEMENT') impCount++;
-                        else if (issueTypeName === 'QUESTION') queCount++;
+
+                        let isBugLike = issueTypeName.includes('BUG') || issueTypeName.includes('DEFECT') || issueTypeName === 'SUB-TASK';
+                        let groupKey = isBugLike ? 'BUG' : issueTypeName;
                         
-                        if (!typeContainers[issueTypeName][tag]) typeContainers[issueTypeName][tag] = {};
-                        if (!typeContainers[issueTypeName][tag][pName]) typeContainers[issueTypeName][tag][pName] = [];
-                        typeContainers[issueTypeName][tag][pName].push({ key: issue.key, summary: summary.replace(/\[.*?\]/g, '').trim() });
+                        if (!issueTypeCounts[groupKey]) issueTypeCounts[groupKey] = 0;
+                        issueTypeCounts[groupKey]++;
+
+                        if (!issueTypePriorityMap[groupKey]) issueTypePriorityMap[groupKey] = {};
+                        if (!issueTypePriorityMap[groupKey][pName]) issueTypePriorityMap[groupKey][pName] = 0;
+                        issueTypePriorityMap[groupKey][pName]++;
+
+                        if (!typeContainers[groupKey]) typeContainers[groupKey] = {};
+                        if (!typeContainers[groupKey][tag]) typeContainers[groupKey][tag] = {};
+                        if (!typeContainers[groupKey][tag][pName]) typeContainers[groupKey][tag][pName] = [];
+                        typeContainers[groupKey][tag][pName].push({ key: issue.key, summary: summary.replace(/\[.*?\]/g, '').trim() });
                     }
                 });
                 
-                const effectivePrioritiesOrder = jiraPrioritiesList.length > 0 ? jiraPrioritiesList : Object.keys(bugPriorityMap);
+                const effectivePrioritiesOrder = jiraPrioritiesList.length > 0 ? jiraPrioritiesList : Object.keys(issueTypePriorityMap['BUG'] || {});
 
                 let buildStatusParts = [];
-                if (bugCount > 0) {
-                    effectivePrioritiesOrder.forEach(pr => { 
-                        if (bugPriorityMap[pr]) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); 
-                    });
-                    for (const pr in bugPriorityMap) { 
-                        if (!effectivePrioritiesOrder.includes(pr)) buildStatusParts.push(pr + ": " + bugPriorityMap[pr]); 
+                const sortedTypes = Object.keys(issueTypeCounts).sort();
+                
+                sortedTypes.forEach(tKey => {
+                    const displayName = tKey.charAt(0) + tKey.slice(1).toLowerCase();
+                    if (tKey === 'BUG') {
+                        const pMap = issueTypePriorityMap[tKey];
+                        effectivePrioritiesOrder.forEach(pr => {
+                            if (pMap[pr]) buildStatusParts.push(`${pr}: ${pMap[pr]}`);
+                        });
+                        for (const pr in pMap) {
+                            if (!effectivePrioritiesOrder.includes(pr)) buildStatusParts.push(`${pr}: ${pMap[pr]}`);
+                        }
+                    } else {
+                        buildStatusParts.push(`${displayName}: ${issueTypeCounts[tKey]}`);
                     }
-                }
-                if (impCount > 0) buildStatusParts.push(`Improvement: ${impCount}`);
-                if (queCount > 0) buildStatusParts.push(`Question: ${queCount}`);
+                });
                 
                 let buildNoun = buildStatusCount === 1 ? 'ticket' : 'tickets';
                 let totalNoun = totalBoardTickets === 1 ? 'ticket' : 'tickets';
@@ -1523,7 +1601,9 @@ export default function App() {
                 };
                 let jiraBody = '';
                 let sectionIndex = 1;
-                ['BUG', 'IMPROVEMENT', 'QUESTION'].forEach(typeKey => {
+                const typeKeys = Object.keys(typeContainers).sort();
+                
+                typeKeys.forEach(typeKey => {
                     if (typeKey === 'BUG') {
                         const tags = Object.keys(typeContainers['BUG']);
                         if (tags.length > 0) {
@@ -1592,6 +1672,7 @@ export default function App() {
                         }
                     }
                 });
+                
                 if (jiraBody.trim().length > 0) jiraReportSegment = "B. [TICKETS]\n" + jiraBody;
             } catch (error) {
                 hideLoadingToast();
@@ -1656,7 +1737,6 @@ export default function App() {
                             if (line.startsWith("- ") || line.startsWith("+ ")) return "  " + line;
                             return "  - " + line;
                         }).join('\n');
-                        linksCollected.push(formattedBlock);
                     } else {
                         let isNested = preprodLines.length > 1 || preprodLines[0].includes(":");
                         if (isNested) {
@@ -1789,6 +1869,7 @@ export default function App() {
                                     setSelectedTaskKey('');
                                     setJiraStatuses([]);
                                     setJiraPrioritiesList([]);
+                                    setJiraIssueTypesList([]);
                                     setJiraTagsList([]);
                                     setAuthTrigger(prev => prev + 1);
                                     showToast("Switched Jira Workspace", 'success');
@@ -2227,6 +2308,39 @@ export default function App() {
                             );
                         })}
                     </div>
+                    
+                    {jiraIssueTypesList.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
+                            <button type="button" onClick={() => setIsIssueTypeAccordionOpen(!isIssueTypeAccordionOpen)} className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all">
+                                <span>Filter Types / Worktypes</span>
+                                <span className="text-slate-400">{isIssueTypeAccordionOpen ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isIssueTypeAccordionOpen && (
+                                <div className="p-3 border-t border-slate-200 bg-slate-50">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Select Types to Include</span>
+                                        <div className="flex gap-1 text-[9px]">
+                                            <button type="button" onClick={() => toggleAllIssueTypes(true)} className="text-indigo-600 hover:underline font-bold">All</button>
+                                            <span className="text-slate-300">|</span>
+                                            <button type="button" onClick={() => toggleAllIssueTypes(false)} className="text-slate-500 hover:underline">None</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
+                                        {jiraIssueTypesList.map(type => {
+                                            const isChecked = !!checkedIssueTypesMap[type];
+                                            return (
+                                                <div key={type} onClick={() => setCheckedIssueTypesMap(p => ({ ...p, [type]: !isChecked }))} className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[8px] font-bold ${isChecked ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-300'}`}>{isChecked ? '✓' : ''}</span>
+                                                    <span className="text-[10px] font-semibold">{type}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {jiraPrioritiesList.length > 0 && (
                         <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
